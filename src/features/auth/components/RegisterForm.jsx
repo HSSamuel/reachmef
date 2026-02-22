@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom"; // ✅ Added useSearchParams
+import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore";
 import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
@@ -27,28 +27,14 @@ export function RegisterForm() {
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams(); // ✅ Added searchParams
 
-  // ✅ FIX: Extract initializeAuth and user
-  const { register, signInWithSocial, initializeAuth, user } = useAuthStore();
+  const { register, signInWithSocial, user } = useAuthStore();
 
-  // ✅ FIX: Redirect if already logged in
   useEffect(() => {
     if (user) {
       navigate("/dashboard", { replace: true });
     }
   }, [user, navigate]);
-
-  // ✅ FIX: Catch Social Login Token from URL
-  useEffect(() => {
-    const token = searchParams.get("token");
-    if (token) {
-      localStorage.setItem("reachme_token", token);
-      initializeAuth();
-      toast.success("Account created successfully!");
-      navigate("/dashboard", { replace: true });
-    }
-  }, [searchParams, navigate, initializeAuth]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -62,9 +48,7 @@ export function RegisterForm() {
     setError("");
 
     try {
-      // ✅ 1. Call Register. Our Express API returns the token directly now.
       const response = await register(email, password, name);
-
       if (response) {
         toast.success("Account created! Redirecting...");
         navigate("/dashboard");

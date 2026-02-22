@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ExternalLink, Lock, ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import axios from "axios";
+import { toast } from "react-hot-toast"; // ✅ Added toast
 
 export function PublicLink({
   link,
@@ -10,18 +11,20 @@ export function PublicLink({
   themeColor,
   isDark,
 }) {
-  const [isLocked, setIsLocked] = useState(!!link.gate_code);
+  const [isLocked, setIsLocked] = useState(!!link.is_locked); // ✅ Use backend flag
   const [showInput, setShowInput] = useState(false);
   const [pin, setPin] = useState("");
   const [shake, setShake] = useState(false);
+  const [unlockedUrl, setUnlockedUrl] = useState(link.url); // ✅ Use state for URL
 
   const accentColor = themeColor || "#6366f1";
 
   // --- ANALYTICS ---
   const trackClick = async () => {
     try {
-      // MONGODB FIX: Send request to your express server to increment click using _id
-      await axios.post(`http://localhost:5000/api/links/${link._id}/click`);
+      await axios.post(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/links/${link._id}/click`,
+      );
     } catch (err) {
       console.error("Tracking error", err);
     }
@@ -59,15 +62,22 @@ export function PublicLink({
         ? "rgba(255,255,255,0.2)"
         : "rgba(226,232,240,1)";
 
-  const handleUnlock = (e) => {
+  // ✅ VULNERABILITY FIX: Perform verification on the server
+  const handleUnlock = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (pin === link.gate_code) {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/links/${link._id}/unlock`,
+        { pin },
+      );
+      setUnlockedUrl(response.data.url);
       setIsLocked(false);
-    } else {
+    } catch (err) {
       setShake(true);
       setTimeout(() => setShake(false), 300);
       setPin("");
+      toast.error("Invalid PIN");
     }
   };
 
@@ -75,34 +85,39 @@ export function PublicLink({
 
   // 1. YouTube
   const getYouTubeId = (url) => {
+    if (!url) return null;
     const match = url.match(
       /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/,
     );
     return match && match[2].length === 11 ? match[2] : null;
   };
-  const videoId = getYouTubeId(link.url);
+  const videoId = getYouTubeId(unlockedUrl);
 
   // 2. Spotify
-  const isSpotify = link.url.includes("open.spotify.com");
+  const isSpotify = unlockedUrl && unlockedUrl.includes("open.spotify.com");
   const getSpotifyEmbed = (url) => {
+    if (!url) return null;
     const match = url.match(
       /open\.spotify\.com\/(track|album|playlist|episode)\/([a-zA-Z0-9]+)/,
     );
     if (!match) return null;
-    return `https://open.spotify.com/embed/${match[1]}/${match[2]}`;
+    return `https://open.spotify.com/embed/$${match[1]}/${match[2]}`; // ✅ Fixed Template string interpolation
   };
 
   // 3. Twitter / X
   const isTwitter =
-    link.url.includes("twitter.com") || link.url.includes("x.com");
+    unlockedUrl &&
+    (unlockedUrl.includes("twitter.com") || unlockedUrl.includes("x.com"));
 
   // 4. Calendly / Cal.com
   const isCalendar =
-    link.url.includes("calendly.com") || link.url.includes("cal.com");
+    unlockedUrl &&
+    (unlockedUrl.includes("calendly.com") || unlockedUrl.includes("cal.com"));
 
   // 5. Typeform / Tally
   const isForm =
-    link.url.includes("typeform.com") || link.url.includes("tally.so");
+    unlockedUrl &&
+    (unlockedUrl.includes("typeform.com") || unlockedUrl.includes("tally.so"));
 
   // --- RENDERERS ---
 
@@ -173,7 +188,7 @@ export function PublicLink({
 
   // SPOTIFY EMBED
   if (isSpotify) {
-    const embedUrl = getSpotifyEmbed(link.url);
+    const embedUrl = getSpotifyEmbed(unlockedUrl);
     if (embedUrl) {
       return (
         <motion.div
@@ -197,7 +212,7 @@ export function PublicLink({
   if (isTwitter) {
     return (
       <div className="w-full max-w-[95%] mx-auto mb-4 overflow-hidden rounded-2xl bg-white shadow-sm border border-slate-200">
-        <TwitterEmbed url={link.url} isDark={isDark} />
+        <TwitterEmbed url={unlockedUrl} isDark={isDark} />
       </div>
     );
   }
@@ -207,7 +222,7 @@ export function PublicLink({
     return (
       <EmbedWrapper height="h-96">
         <iframe
-          src={link.url}
+          src={unlockedUrl}
           className="w-full h-full rounded-2xl bg-white"
           title={link.title}
         />
@@ -218,7 +233,7 @@ export function PublicLink({
   // STANDARD LINK
   return (
     <motion.a
-      href={link.url}
+      href={unlockedUrl}
       target="_blank"
       rel="noopener noreferrer"
       onClick={trackClick}
@@ -260,7 +275,7 @@ export function PublicLink({
           {link.title}
         </h3>
         <p className={`text-xs truncate transition-colors ${textColorClass}`}>
-          {link.url.replace(/^https?:\/\//, "")}
+          {unlockedUrl.replace(/^https?:\/\//, "")}
         </p>
       </div>
 

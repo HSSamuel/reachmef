@@ -3,18 +3,12 @@ import { api } from "../config/api";
 
 export const useAuthStore = create((set) => ({
   user: null,
-  session: !!localStorage.getItem("reachme_token"),
+  session: false,
   loading: true,
 
   // 1. Initialize Auth
   initializeAuth: async () => {
     set({ loading: true });
-    const token = localStorage.getItem("reachme_token");
-
-    if (!token) {
-      set({ session: false, user: null, loading: false });
-      return;
-    }
 
     try {
       const response = await api.get("/auth/me");
@@ -22,7 +16,6 @@ export const useAuthStore = create((set) => ({
       const userData = { ...response.data, id: response.data._id };
       set({ session: true, user: userData, loading: false });
     } catch (error) {
-      localStorage.removeItem("reachme_token");
       set({ session: false, user: null, loading: false });
     }
   },
@@ -36,7 +29,6 @@ export const useAuthStore = create((set) => ({
         full_name: name,
       });
 
-      localStorage.setItem("reachme_token", response.data.token);
       const userData = { ...response.data.user, id: response.data.user.id };
       set({ session: true, user: userData });
       return response.data;
@@ -50,7 +42,6 @@ export const useAuthStore = create((set) => ({
     try {
       const response = await api.post("/auth/login", { email, password });
 
-      localStorage.setItem("reachme_token", response.data.token);
       const userData = { ...response.data.user, id: response.data.user.id };
       set({ session: true, user: userData });
       return response.data;
@@ -60,13 +51,17 @@ export const useAuthStore = create((set) => ({
   },
 
   signInWithSocial: async (provider) => {
-    throw new Error(
-      `Social login with ${provider} is not yet configured on the new backend.`,
-    );
+    // Redirects directly to backend to handle OAuth. Backend handles cookie setting.
+    window.location.href = `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/${provider}`;
   },
 
   signOut: async () => {
-    localStorage.removeItem("reachme_token");
-    set({ user: null, session: false });
+    try {
+      await api.post("/auth/logout");
+    } catch (err) {
+      console.error("Logout failed", err);
+    } finally {
+      set({ user: null, session: false });
+    }
   },
 }));

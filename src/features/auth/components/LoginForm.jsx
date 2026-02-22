@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom"; // ✅ Added useSearchParams
+import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore";
 import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
@@ -25,32 +25,14 @@ export function LoginForm() {
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams(); // ✅ Added searchParams to catch URL tokens
 
-  // ✅ FIX 1: Get 'user' and 'initializeAuth' from store
-  const { login, signInWithSocial, user, initializeAuth } = useAuthStore();
+  const { login, signInWithSocial, user } = useAuthStore();
 
-  // ✅ FIX 2: Redirect if already logged in (Prevents stale session confusion)
   useEffect(() => {
     if (user) {
       navigate("/dashboard", { replace: true });
     }
   }, [user, navigate]);
-
-  // ✅ FIX 3: Catch Social Login Token from URL
-  useEffect(() => {
-    const token = searchParams.get("token");
-    if (token) {
-      // Save the token from the backend redirect
-      localStorage.setItem("reachme_token", token);
-      
-      // Tell the store to fetch the user profile with this new token
-      initializeAuth(); 
-      
-      toast.success("Logged in successfully!");
-      navigate("/dashboard", { replace: true });
-    }
-  }, [searchParams, navigate, initializeAuth]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -63,27 +45,25 @@ export function LoginForm() {
     setError("");
 
     try {
-      // ✅ 1. Attempt Login
       await login(email, password);
-
       toast.success("Welcome back!");
       navigate("/dashboard");
     } catch (err) {
       console.error(err);
 
-      // ✅ 2. Handle Invalid Credentials specifically
-      if (err.message.includes("Invalid login credentials") || err.message.includes("Invalid Credentials")) {
+      if (
+        err.message.includes("Invalid login credentials") ||
+        err.message.includes("Invalid Credentials")
+      ) {
         const msg = "Account not found or incorrect password.";
         setError(msg);
         toast.error(msg, { icon: "🚫" });
       } else {
-        // Handle other errors (network, server, etc)
         const msg = err.message || "Failed to login. Please try again.";
         setError(msg);
         toast.error(msg);
       }
     } finally {
-      // ✅ 3. Always stop loading
       setLoadingType(null);
     }
   };
