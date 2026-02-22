@@ -78,7 +78,7 @@ export function PublicProfile() {
     if (!value) return null;
     if (platform === "phone") return `tel:${value}`;
     if (platform === "email") {
-      return `https://mail.google.com/mail/?view=cm&fs=1&to=${value}`;
+      return `mailto:${value}`;
     }
     if (value.startsWith("http") || value.startsWith("//")) return value;
     return `https://${value}`;
