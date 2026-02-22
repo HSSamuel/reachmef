@@ -109,9 +109,6 @@ export function DashboardHome() {
               {typedName}
               <span className="text-indigo-600 animate-pulse ml-0.5">|</span>
             </span>
-            <span className="animate-bounce inline-block origin-bottom-right">
-              👋
-            </span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Here is your daily snapshot.
