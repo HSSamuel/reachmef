@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Mail, Loader2, Check, AlertCircle } from "lucide-react";
-import axios from "axios"; // ✅ Replaced supabase with axios
+import { api } from "../../../config/api"; // ✅ Use the configured API instance
 
-// ✅ 1. Add 'profileId' to the props here
+// ✅ Add 'profileId' to the props here
 export function SubscribeBlock({ title, themeColor, profileId }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("idle");
@@ -25,8 +25,8 @@ export function SubscribeBlock({ title, themeColor, profileId }) {
     setErrorMessage("");
 
     try {
-      // ✅ 2. Send 'profile_id' along with the email via Express API
-      await axios.post("http://localhost:5000/api/subscribers", {
+      // ✅ Send 'profile_id' via the pre-configured API instance
+      await api.post("/subscribers", {
         email: email,
         profile_id: profileId,
       });

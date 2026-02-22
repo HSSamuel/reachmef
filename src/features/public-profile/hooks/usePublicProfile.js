@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios"; // ✅ Using axios directly because this is a public route (no token required)
+import { api } from "../../../config/api"; // ✅ Use the configured API instance
 
 export const usePublicProfile = (username) => {
   const [profile, setProfile] = useState(null);
@@ -11,25 +11,26 @@ export const usePublicProfile = (username) => {
   useEffect(() => {
     if (!username) return;
 
+    // ✅ EDGE CASE FIX: Prevent collision with the private "/me" route
+    if (username.toLowerCase() === "me") {
+      setError("Invalid profile URL");
+      setLoading(false);
+      return;
+    }
+
     async function fetchData() {
       try {
         setLoading(true);
-        // 1. Get Profile
-        const profileRes = await axios.get(
-          `http://localhost:5000/api/profiles/${username}`,
-        );
+        // 1. Get Profile (Using 'api' automatically uses your Render URL in production)
+        const profileRes = await api.get(`/profiles/${username}`);
         const profileData = profileRes.data;
 
         if (!profileData) throw new Error("Profile not found");
 
         // 2. Get Links and Products
         const [linksRes, productsRes] = await Promise.all([
-          axios.get(
-            `http://localhost:5000/api/links/public/${profileData._id}`,
-          ),
-          axios.get(
-            `http://localhost:5000/api/products/public/${profileData._id}`,
-          ),
+          api.get(`/links/public/${profileData._id}`),
+          api.get(`/products/public/${profileData._id}`),
         ]);
 
         setProfile(profileData);
