@@ -28,6 +28,7 @@ import {
   Twitch,
   Check,
   Mail,
+  Video,
 } from "lucide-react";
 import { api } from "../../../config/api";
 import { Switch } from "../../../components/ui/Switch";
@@ -36,8 +37,9 @@ import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function AppearanceEditor() {
-  const { profile, loading, updateProfile } = useProfile();
+  const { profile, loading, updateProfile, deleteFile } = useProfile();
   const [uploading, setUploading] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   // Local state for username
@@ -71,24 +73,65 @@ export function AppearanceEditor() {
 
   const handleFileUpload = async (e, field) => {
     try {
-      setUploading(true);
+      const isVideo = field === "story_video_url";
+      if (isVideo) {
+        setUploadingVideo(true);
+      } else {
+        setUploading(true);
+      }
+
       const file = e.target.files[0];
       if (!file) return;
+
+      if (isVideo && file.size > 10 * 1024 * 1024) {
+        throw new Error("Video must be under 10MB");
+      }
+
+      // ✅ 1. Delete the old file from Cloudinary if replacing an existing one
+      const oldFileUrl = profile[field];
+      if (oldFileUrl) {
+        await deleteFile(oldFileUrl);
+      }
 
       const formData = new FormData();
       formData.append("image", file);
 
+      // ✅ 2. Upload the new file
       const { data } = await api.post("/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
       await updateProfile({ [field]: data.url });
-      toast.success("Image uploaded!");
+      if (isVideo) {
+        toast.success("Story Video uploaded!");
+      } else {
+        toast.success("Image uploaded!");
+      }
     } catch (error) {
       console.error(error);
-      toast.error("Error uploading image");
+      toast.error(error.message || "Upload failed");
     } finally {
       setUploading(false);
+      setUploadingVideo(false);
+    }
+  };
+
+  // ✅ Handle physical removal of the Story Video
+  const handleRemoveStory = async () => {
+    if (profile.story_video_url) {
+      await deleteFile(profile.story_video_url); // Wipe from Cloudinary
+      await updateProfile({ story_video_url: "" }); // Clear from DB
+      toast.success("Story removed!");
+    }
+  };
+
+  // ✅ Handle physical removal of the Background Image
+  const handleRemoveBackground = async (e) => {
+    e.stopPropagation();
+    if (profile.background_url) {
+      await deleteFile(profile.background_url); // Wipe from Cloudinary
+      await updateProfile({ background_url: null }); // Clear from DB
+      toast.success("Background removed!");
     }
   };
 
@@ -117,7 +160,7 @@ export function AppearanceEditor() {
         <div className="xl:col-span-2 space-y-4">
           {/* 1. PROFILE DETAILS (Blue) */}
           <AccordionItem
-            title="Profile"
+            title="Profile & Story"
             icon={<Layout size={18} />}
             isOpen={openSection === "profile"}
             onClick={() => toggleSection("profile")}
@@ -184,30 +227,65 @@ export function AppearanceEditor() {
               </div>
 
               {/* Avatar Upload */}
-              <div className="relative group shrink-0 mb-2 sm:mb-0">
-                <div className="w-24 h-24 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-white ring-4 sm:ring-2 ring-white shadow-md sm:shadow-sm">
-                  {profile.avatar_url ? (
-                    <img
-                      src={profile.avatar_url}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
+              <div className="flex flex-col items-center gap-4 shrink-0 mb-2 sm:mb-0">
+                <div className="relative group">
+                  <div className="w-24 h-24 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-white ring-4 sm:ring-2 ring-white shadow-md sm:shadow-sm">
+                    {profile.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300 bg-slate-50">
+                        <Upload size={24} />
+                      </div>
+                    )}
+                  </div>
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-full text-white font-bold text-[10px] uppercase tracking-wide">
+                    {uploading ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      "Change"
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleFileUpload(e, "avatar_url")}
+                      disabled={uploading}
                     />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-300 bg-slate-50">
-                      <Upload size={24} />
-                    </div>
+                  </label>
+                </div>
+
+                {/* ✅ Video Story Upload */}
+                <div className="text-center w-full">
+                  <label className="flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-full cursor-pointer hover:scale-105 transition-transform shadow-md">
+                    {uploadingVideo ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Video size={12} />
+                    )}
+                    {profile.story_video_url
+                      ? "Change Story"
+                      : "Add Video Story"}
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm,video/quicktime"
+                      className="hidden"
+                      onChange={(e) => handleFileUpload(e, "story_video_url")}
+                      disabled={uploadingVideo}
+                    />
+                  </label>
+                  {profile.story_video_url && (
+                    <button
+                      onClick={handleRemoveStory}
+                      className="text-[10px] text-red-500 font-bold mt-1 hover:underline"
+                    >
+                      Remove Story
+                    </button>
                   )}
                 </div>
-                <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-full text-white font-bold text-[10px] uppercase tracking-wide">
-                  Change
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleFileUpload(e, "avatar_url")}
-                    disabled={uploading}
-                  />
-                </label>
               </div>
             </div>
           </AccordionItem>
@@ -279,10 +357,7 @@ export function AppearanceEditor() {
                           alt="bg"
                         />
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateProfile({ background_url: null });
-                          }}
+                          onClick={handleRemoveBackground}
                           className="absolute top-1 right-1 bg-white shadow-sm p-1 rounded-full text-red-500 z-10 hover:scale-110 transition-transform"
                         >
                           <X size={12} />
@@ -415,7 +490,7 @@ export function AppearanceEditor() {
                   onChange={(v) => updateProfile({ social_phone: v })}
                 />
                 <SocialInput
-                  icon={<WhatsApp size={16} className="text-[#25D366]" />} // ✅ Official WhatsApp Icon
+                  icon={<WhatsApp size={16} className="text-[#25D366]" />}
                   placeholder="https://wa.me/2348084737049"
                   value={profile.social_whatsapp}
                   onChange={(v) => updateProfile({ social_whatsapp: v })}
@@ -705,7 +780,6 @@ function SocialInput({ icon, placeholder, value, onChange }) {
   );
 }
 
-// ✅ Official Custom WhatsApp SVG Component
 const WhatsApp = ({ size = 24, className = "" }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

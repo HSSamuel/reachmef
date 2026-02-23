@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useLinks } from "../../editor/hooks/useLinks";
 import { useProducts } from "../../shop/hooks/useProducts";
 import { useAuthStore } from "../../../store/authStore";
@@ -17,11 +18,16 @@ import {
   Gamepad2,
   Mic2,
   Mail,
+  X,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function PhonePreview({ profile }) {
   const { user } = useAuthStore();
   const { links } = useLinks();
+
+  // ✅ NEW: State for Video Modal
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
 
   if (!profile)
     return (
@@ -55,172 +61,215 @@ export function PhonePreview({ profile }) {
   };
 
   return (
-    <div className="w-[320px] h-[650px] border-[12px] border-slate-900 rounded-[3rem] bg-slate-900 shadow-2xl overflow-hidden ring-4 ring-slate-200 mx-auto origin-top scale-[0.8] sm:scale-100 transition-transform relative">
-      {/* Dynamic Notch */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900 rounded-b-xl z-30 flex justify-center items-end pb-1.5">
-        <div className="w-12 h-1 bg-slate-800 rounded-full"></div>
-      </div>
+    <>
+      <div className="w-[320px] h-[650px] border-[12px] border-slate-900 rounded-[3rem] bg-slate-900 shadow-2xl overflow-hidden ring-4 ring-slate-200 mx-auto origin-top scale-[0.8] sm:scale-100 transition-transform relative">
+        {/* Dynamic Notch */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900 rounded-b-xl z-30 flex justify-center items-end pb-1.5">
+          <div className="w-12 h-1 bg-slate-800 rounded-full"></div>
+        </div>
 
-      <div
-        className="w-full h-full overflow-y-auto no-scrollbar pb-24 pt-12 px-4 transition-colors duration-300 scrollbar-hide relative"
-        style={{ ...bgStyle, fontFamily: profile.font_family || "Inter" }}
-      >
-        {profile.background_url && (
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/5 pointer-events-none z-0"></div>
-        )}
+        <div
+          className="w-full h-full overflow-y-auto no-scrollbar pb-24 pt-12 px-4 transition-colors duration-300 scrollbar-hide relative"
+          style={{ ...bgStyle, fontFamily: profile.font_family || "Inter" }}
+        >
+          {profile.background_url && (
+            <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/5 pointer-events-none z-0"></div>
+          )}
 
-        <div className="relative z-10 flex flex-col gap-5">
-          {/* 1. PROFILE HEADER */}
-          <div className="flex flex-col items-center text-center mt-2">
-            <div className="w-20 h-20 rounded-full border-[3px] border-white shadow-lg overflow-hidden mb-3 bg-white shrink-0">
-              <img
-                src={
-                  profile.avatar_url ||
-                  `https://api.dicebear.com/7.x/initials/svg?seed=${displayName}`
-                }
-                className="w-full h-full object-cover"
-                alt="Avatar"
+          <div className="relative z-10 flex flex-col gap-5">
+            {/* 1. PROFILE HEADER */}
+            <div className="flex flex-col items-center text-center mt-2">
+              {/* ✅ STORY RING WRAPPER */}
+              <div
+                onClick={() => profile.story_video_url && setIsVideoOpen(true)}
+                className={`relative rounded-full mb-3 shrink-0 ${
+                  profile.story_video_url
+                    ? "p-1 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 cursor-pointer hover:scale-105 transition-transform shadow-xl shadow-pink-500/30 animate-pulse"
+                    : "p-0"
+                }`}
+              >
+                <div className="w-20 h-20 rounded-full border-[3px] border-white overflow-hidden bg-white shadow-lg">
+                  <img
+                    src={
+                      profile.avatar_url ||
+                      `https://api.dicebear.com/7.x/initials/svg?seed=${displayName}`
+                    }
+                    className="w-full h-full object-cover"
+                    alt="Avatar"
+                  />
+                </div>
+              </div>
+
+              <div
+                className={`px-4 py-2 rounded-2xl transition-colors duration-300 ${
+                  profile.background_url
+                    ? "bg-white/80 backdrop-blur-md shadow-sm border border-white/40"
+                    : ""
+                }`}
+              >
+                <h2
+                  className={`font-bold text-sm leading-tight transition-colors duration-300 ${
+                    isDarkTheme ? "text-white" : "text-slate-900"
+                  }`}
+                >
+                  {displayName}
+                </h2>
+
+                {profile.bio && (
+                  <p
+                    className={`text-[10px] mt-1 leading-relaxed max-w-[200px] mx-auto transition-colors duration-300 ${
+                      isDarkTheme ? "text-slate-300" : "text-slate-600"
+                    }`}
+                  >
+                    {profile.bio}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* 2. SOCIAL ICONS */}
+            <div className="flex items-center justify-center gap-2.5 flex-wrap px-2">
+              <SocialIcon
+                Icon={Mail}
+                url={getSocialLink("email", profile.social_email)}
+                color="#EA4335"
+              />
+              <SocialIcon
+                Icon={Phone}
+                url={getSocialLink("phone", profile.social_phone)}
+                color="#16a34a"
+              />
+              <SocialIcon
+                Icon={WhatsApp} // ✅ Official WhatsApp Icon
+                url={profile.social_whatsapp}
+                color="#25D366"
+              />
+              <SocialIcon
+                Icon={Instagram}
+                url={profile.social_instagram}
+                color="#E1306C"
+              />
+              <SocialIcon
+                Icon={Music2}
+                url={profile.social_tiktok}
+                color="#000000"
+              />
+              <SocialIcon
+                Icon={Twitter}
+                url={profile.social_twitter}
+                color="#1DA1F2"
+              />
+              <SocialIcon
+                Icon={Youtube}
+                url={profile.social_youtube}
+                color="#FF0000"
+              />
+              <SocialIcon
+                Icon={Facebook}
+                url={profile.social_facebook}
+                color="#1877F2"
+              />
+              <SocialIcon
+                Icon={Linkedin}
+                url={profile.social_linkedin}
+                color="#0077B5"
+              />
+              <SocialIcon
+                Icon={Ghost}
+                url={profile.social_snapchat}
+                color="#FFFC00"
+              />
+              <SocialIcon
+                Icon={Gamepad2}
+                url={profile.social_discord}
+                color="#5865F2"
+              />
+              <SocialIcon
+                Icon={Mic2}
+                url={profile.social_spotify}
+                color="#1DB954"
+              />
+              <SocialIcon
+                Icon={Github}
+                url={profile.social_github}
+                color="#181717"
               />
             </div>
 
-            <div
-              className={`px-4 py-2 rounded-2xl transition-colors duration-300 ${
-                profile.background_url
-                  ? "bg-white/80 backdrop-blur-md shadow-sm border border-white/40"
-                  : ""
-              }`}
-            >
-              <h2
-                className={`font-bold text-sm leading-tight transition-colors duration-300 ${
-                  isDarkTheme ? "text-white" : "text-slate-900"
-                }`}
-              >
-                {displayName}
-              </h2>
+            {/* 3. FEATURES */}
+            {(profile.tipping_enabled || profile.newsletter_enabled) && (
+              <div className="space-y-3">
+                {profile.tipping_enabled && (
+                  <button className="w-full max-w-[95%] mx-auto flex items-center justify-center gap-2 bg-white shadow-sm border border-slate-100 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs hover:scale-[1.02] transition-transform active:scale-95">
+                    <Heart size={14} className="text-red-500 fill-red-500" />
+                    {profile.tipping_title || "Support Me"}
+                  </button>
+                )}
 
-              {profile.bio && (
-                <p
-                  className={`text-[10px] mt-1 leading-relaxed max-w-[200px] mx-auto transition-colors duration-300 ${
-                    isDarkTheme ? "text-slate-300" : "text-slate-600"
-                  }`}
-                >
-                  {profile.bio}
-                </p>
-              )}
-            </div>
-          </div>
+                {profile.newsletter_enabled && (
+                  <div className="w-full">
+                    <SubscribeBlock
+                      title={profile.newsletter_title}
+                      themeColor={profile.theme_color}
+                      profileId={profile._id}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
-          {/* 2. SOCIAL ICONS */}
-          <div className="flex items-center justify-center gap-2.5 flex-wrap px-2">
-            <SocialIcon
-              Icon={Mail}
-              url={getSocialLink("email", profile.social_email)}
-              color="#EA4335"
-            />
-            <SocialIcon
-              Icon={Phone}
-              url={getSocialLink("phone", profile.social_phone)}
-              color="#16a34a"
-            />
-            <SocialIcon
-              Icon={WhatsApp} // ✅ Official WhatsApp Icon
-              url={profile.social_whatsapp}
-              color="#25D366"
-            />
-            <SocialIcon
-              Icon={Instagram}
-              url={profile.social_instagram}
-              color="#E1306C"
-            />
-            <SocialIcon
-              Icon={Music2}
-              url={profile.social_tiktok}
-              color="#000000"
-            />
-            <SocialIcon
-              Icon={Twitter}
-              url={profile.social_twitter}
-              color="#1DA1F2"
-            />
-            <SocialIcon
-              Icon={Youtube}
-              url={profile.social_youtube}
-              color="#FF0000"
-            />
-            <SocialIcon
-              Icon={Facebook}
-              url={profile.social_facebook}
-              color="#1877F2"
-            />
-            <SocialIcon
-              Icon={Linkedin}
-              url={profile.social_linkedin}
-              color="#0077B5"
-            />
-            <SocialIcon
-              Icon={Ghost}
-              url={profile.social_snapchat}
-              color="#FFFC00"
-            />
-            <SocialIcon
-              Icon={Gamepad2}
-              url={profile.social_discord}
-              color="#5865F2"
-            />
-            <SocialIcon
-              Icon={Mic2}
-              url={profile.social_spotify}
-              color="#1DB954"
-            />
-            <SocialIcon
-              Icon={Github}
-              url={profile.social_github}
-              color="#181717"
-            />
-          </div>
+            {/* 4. SHOP CAROUSEL */}
+            <ProductGrid isDarkTheme={isDarkTheme} />
 
-          {/* 3. FEATURES */}
-          {(profile.tipping_enabled || profile.newsletter_enabled) && (
-            <div className="space-y-3">
-              {profile.tipping_enabled && (
-                <button className="w-full max-w-[95%] mx-auto flex items-center justify-center gap-2 bg-white shadow-sm border border-slate-100 text-slate-800 px-4 py-2.5 rounded-xl font-bold text-xs hover:scale-[1.02] transition-transform active:scale-95">
-                  <Heart size={14} className="text-red-500 fill-red-500" />
-                  {profile.tipping_title || "Support Me"}
-                </button>
-              )}
-
-              {profile.newsletter_enabled && (
-                <div className="w-full">
-                  <SubscribeBlock
-                    title={profile.newsletter_title}
+            {/* 5. LINKS LIST */}
+            <div className="space-y-3 pb-8">
+              {links
+                .filter((l) => l.is_active)
+                .map((link) => (
+                  <PublicLink
+                    key={link._id}
+                    link={link}
+                    buttonStyle={profile.button_style}
                     themeColor={profile.theme_color}
-                    profileId={profile._id}
+                    isDark={isDarkTheme}
                   />
-                </div>
-              )}
+                ))}
             </div>
-          )}
-
-          {/* 4. SHOP CAROUSEL */}
-          <ProductGrid isDarkTheme={isDarkTheme} />
-
-          {/* 5. LINKS LIST */}
-          <div className="space-y-3 pb-8">
-            {links
-              .filter((l) => l.is_active)
-              .map((link) => (
-                <PublicLink
-                  key={link._id}
-                  link={link}
-                  buttonStyle={profile.button_style}
-                  themeColor={profile.theme_color}
-                  isDark={isDarkTheme}
-                />
-              ))}
           </div>
         </div>
       </div>
-    </div>
+
+      {/* ✅ THE VIDEO MODAL OVERLAY */}
+      <AnimatePresence>
+        {isVideoOpen && profile.story_video_url && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 rounded-[3rem]"
+          >
+            <div className="relative w-full max-w-sm aspect-[9/16] bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+              <video
+                src={profile.story_video_url}
+                autoPlay
+                controls
+                playsInline
+                className="w-full h-full object-cover"
+              />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsVideoOpen(false);
+                }}
+                className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/70 transition-colors z-50"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 

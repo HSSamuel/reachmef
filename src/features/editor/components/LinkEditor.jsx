@@ -15,6 +15,8 @@ import {
   Loader2,
   Eye,
   Layout,
+  RefreshCw,
+  Rss,
 } from "lucide-react";
 import { Switch } from "../../../components/ui/Switch";
 import { Card } from "../../../components/ui/Card";
@@ -51,12 +53,15 @@ export function LinkEditor() {
     deleteLink,
     uploadThumbnail,
     reorderLinks,
+    syncLink,
   } = useLinks();
   const { profile } = useProfile();
 
   const [isAdding, setIsAdding] = useState(false);
   const [newLinkTitle, setNewLinkTitle] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
+  const [isDynamic, setIsDynamic] = useState(false);
+  const [rssUrl, setRssUrl] = useState("");
   const [addingLoading, setAddingLoading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -97,17 +102,37 @@ export function LinkEditor() {
 
   const handleAddLink = async (e) => {
     e.preventDefault();
-    if (!newLinkTitle || !newLinkUrl) {
-      toast.error("Please fill in both fields");
-      return;
+    if (isDynamic) {
+      if (!rssUrl) return toast.error("RSS URL is required for dynamic links.");
+    } else {
+      if (!newLinkTitle || !newLinkUrl) return toast.error("Please fill in both fields");
     }
+
     try {
       setAddingLoading(true);
-      await addLink({ title: newLinkTitle, url: newLinkUrl });
+
+      const payload = isDynamic
+        ? { title: "Fetching Latest...", url: "...", is_dynamic: true, rss_url: rssUrl }
+        : { title: newLinkTitle, url: newLinkUrl, is_dynamic: false };
+
+      const createdLink = await addLink(payload);
+
+      if (isDynamic) {
+        try {
+          await syncLink(createdLink._id);
+          toast.success("Link synced successfully!");
+        } catch (e) {
+          toast.error("Created, but failed to sync RSS feed.");
+        }
+      } else {
+        toast.success("Link added!");
+      }
+
       setNewLinkTitle("");
       setNewLinkUrl("");
+      setRssUrl("");
+      setIsDynamic(false);
       setIsAdding(false);
-      toast.success("Link added!");
     } catch (error) {
       toast.error("Error creating link");
     } finally {
@@ -235,34 +260,51 @@ export function LinkEditor() {
                       <X size={16} />
                     </button>
                   </div>
+                  
+                  <div className="flex items-center gap-2 mb-4 p-3 bg-white rounded-lg border border-indigo-100">
+                     <Switch checked={isDynamic} onCheckedChange={setIsDynamic} />
+                     <div>
+                        <p className="text-sm font-bold text-slate-800 flex items-center gap-1">Auto-Sync Content <SparklesIcon /></p>
+                        <p className="text-[10px] text-slate-500">Automatically update link using an RSS or Blog feed.</p>
+                     </div>
+                  </div>
+
                   <form onSubmit={handleAddLink} className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">
-                          Title
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. My Portfolio"
-                          className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none font-medium text-sm transition-all"
-                          value={newLinkTitle}
-                          onChange={(e) => setNewLinkTitle(e.target.value)}
-                          autoFocus
-                        />
+                    {!isDynamic ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase">
+                            Title
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. My Portfolio"
+                            className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none font-medium text-sm transition-all"
+                            value={newLinkTitle}
+                            onChange={(e) => setNewLinkTitle(e.target.value)}
+                            autoFocus
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase">
+                            URL
+                          </label>
+                          <input
+                            type="url"
+                            placeholder="https://..."
+                            className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none font-medium text-sm transition-all"
+                            value={newLinkUrl}
+                            onChange={(e) => setNewLinkUrl(e.target.value)}
+                          />
+                        </div>
                       </div>
+                    ) : (
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">
-                          URL
-                        </label>
-                        <input
-                          type="url"
-                          placeholder="https://..."
-                          className="w-full px-3 py-2 bg-white border border-indigo-100 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none font-medium text-sm transition-all"
-                          value={newLinkUrl}
-                          onChange={(e) => setNewLinkUrl(e.target.value)}
-                        />
+                          <label className="text-[10px] font-bold text-slate-500 uppercase">RSS Feed URL</label>
+                          <input type="url" placeholder="e.g. https://medium.com/feed/@username" className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-lg text-sm focus:border-indigo-500 outline-none transition-all" value={rssUrl} onChange={(e) => setRssUrl(e.target.value)} />
+                          <p className="text-[10px] text-indigo-600 mt-1 font-medium">Supports Medium, Substack, WordPress, and YouTube RSS feeds.</p>
                       </div>
-                    </div>
+                    )}
                     <div className="flex justify-end pt-1">
                       <button
                         type="submit"
@@ -320,6 +362,7 @@ export function LinkEditor() {
                       deleteLink={handleDelete}
                       handleToggleActive={handleToggleActive}
                       uploadThumbnail={uploadThumbnail}
+                      syncLink={syncLink}
                     />
                   ))}
                 </SortableContext>
@@ -360,7 +403,6 @@ export function LinkEditor() {
       {previewOpen && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-sm p-1 animate-fade-in">
           {/* Content Area */}
-          {/* ✅ CHANGED: flex-col, justify-end, pb-6 to push phone down */}
           <div className="relative flex-1 w-full flex flex-col items-center justify-end overflow-hidden pb-2">
             <div
               onClick={(e) => e.stopPropagation()}
@@ -416,6 +458,7 @@ function LinkItem({
   deleteLink,
   handleToggleActive,
   uploadThumbnail,
+  syncLink,
   dragHandleProps,
   isOverlay,
 }) {
@@ -423,6 +466,7 @@ function LinkItem({
   const [editTitle, setEditTitle] = useState(link.title);
   const [editUrl, setEditUrl] = useState(link.url);
   const [uploadingImg, setUploadingImg] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleSave = async () => {
@@ -446,6 +490,20 @@ function LinkItem({
       setUploadingImg(false);
     }
   };
+
+  const triggerSync = async () => {
+    setSyncing(true);
+    try {
+        if(syncLink) {
+            await syncLink(link._id);
+            toast.success("Content synced!");
+        }
+    } catch(e) {
+        toast.error("Failed to sync");
+    } finally {
+        setSyncing(false);
+    }
+  }
 
   return (
     <div className="group">
@@ -525,9 +583,16 @@ function LinkItem({
               </div>
             ) : (
               <div>
-                <h3 className="font-bold text-sm text-slate-900 truncate">
-                  {link.title}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-sm text-slate-900 truncate">
+                    {link.title}
+                  </h3>
+                  {link.is_dynamic && (
+                    <span className="bg-indigo-100 text-indigo-600 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
+                      <Rss size={8}/> Auto
+                    </span>
+                  )}
+                </div>
                 <a
                   href={link.url}
                   target="_blank"
@@ -541,8 +606,13 @@ function LinkItem({
           </div>
 
           {!isEditing && (
-            <div className="flex items-center gap-3 pl-3 border-l border-slate-100 relative z-10">
-              <div className="hidden sm:flex flex-col items-center min-w-[30px]">
+            <div className="flex items-center gap-2 pl-3 border-l border-slate-100 relative z-10">
+              {link.is_dynamic && (
+                <button onClick={triggerSync} disabled={syncing} className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-md transition-colors" title="Sync Content">
+                    <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
+                </button>
+              )}
+              <div className="hidden sm:flex flex-col items-center min-w-[30px] mr-1">
                 <div className="flex items-center gap-1 text-slate-900 font-bold text-xs">
                   {link.clicks || 0}{" "}
                   <BarChart2 size={10} className="text-slate-400" />
@@ -577,3 +647,9 @@ function LinkItem({
     </div>
   );
 }
+
+const SparklesIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-500 fill-indigo-500">
+    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+  </svg>
+);

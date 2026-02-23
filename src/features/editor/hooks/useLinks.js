@@ -27,7 +27,7 @@ export function useLinks() {
   }, [profile?._id]); // ✅ MONGODB FIX
 
   // 2. ADD LINK
-  const addLink = async ({ title, url }) => {
+  const addLink = async (payload) => {
     try {
       if (!profile?._id) throw new Error("Profile not loaded");
 
@@ -35,8 +35,7 @@ export function useLinks() {
       const currentLength = links.length;
 
       const { data } = await api.post("/links", {
-        title,
-        url,
+        ...payload,
         is_active: true,
         sort_order: currentLength,
       });
@@ -118,6 +117,20 @@ export function useLinks() {
     }
   };
 
+  // 7. SYNC DYNAMIC LINK (RSS)
+  const syncLink = async (id) => {
+    try {
+      const { data } = await api.post(`/links/${id}/sync`);
+      // Update link in state with the newly fetched RSS data
+      setLinks((prev) =>
+        prev.map((link) => (link._id === id ? { ...link, ...data } : link)),
+      );
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   return {
     links,
     loading,
@@ -126,5 +139,6 @@ export function useLinks() {
     deleteLink,
     uploadThumbnail,
     reorderLinks,
+    syncLink,
   };
 }

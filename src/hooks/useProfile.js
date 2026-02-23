@@ -63,5 +63,15 @@ export function useProfile() {
     }
   };
 
-  return { profile, loading, updateProfile, uploadAvatar };
+  // ✅ NEW: Delete file from Cloudinary
+  const deleteFile = async (fileUrl) => {
+    if (!fileUrl) return;
+    try {
+      await api.delete("/upload", { data: { fileUrl } });
+    } catch (error) {
+      console.error("File Delete Error:", error);
+    }
+  };
+
+  return { profile, loading, updateProfile, uploadAvatar, deleteFile };
 }
