@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore";
 import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
@@ -27,6 +27,7 @@ export function RegisterForm() {
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { register, signInWithSocial, user } = useAuthStore();
 
@@ -35,6 +36,37 @@ export function RegisterForm() {
       navigate("/dashboard", { replace: true });
     }
   }, [user, navigate]);
+
+  // ✅ NEW: Handle BFCache (Browser Back Button) and OAuth Errors
+  useEffect(() => {
+    // 1. Check for errors in the URL (e.g., user clicked cancel on Google/GitHub)
+    const searchParams = new URLSearchParams(location.search);
+    const urlError = searchParams.get("error");
+    if (urlError) {
+      setLoadingType(null); // Stop loading immediately
+      if (urlError === "access_denied") {
+        toast.error("Registration was cancelled.");
+        setError("Registration was cancelled.");
+      } else {
+        toast.error("Failed to authenticate. Please try again.");
+      }
+      // Clean up the URL so it doesn't keep showing the error on refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // 2. Fix BFCache Issue (Stuck Loading Spinner when clicking the back button)
+    const handlePageShow = (event) => {
+      // If the page was loaded from the back/forward cache
+      if (event.persisted) {
+        setLoadingType(null);
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, [location]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
