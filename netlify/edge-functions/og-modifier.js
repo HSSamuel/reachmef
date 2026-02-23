@@ -2,7 +2,7 @@ export default async (request, context) => {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  // 1. Skip static assets (like .js, .css, .png) and standard routes
+  // 1. Skip static assets and standard routes
   if (
     path.includes(".") ||
     path.startsWith("/api/") ||
@@ -32,22 +32,36 @@ export default async (request, context) => {
       const profile = await apiRes.json();
 
       const title = profile.full_name || `@${profile.username}`;
-      const desc =
-        profile.bio || `Check out ${profile.username}'s profile on ReachMe`;
       const image =
         profile.avatar_url ||
         `https://api.dicebear.com/7.x/initials/png?seed=${profile.username}`;
+      const profileUrl = `https://reachme.netlify.app/${username}`;
 
-      // 5. Build the specific meta tags for this user
+      // ✅ FIX 1: Create a fallback description > 100 characters for LinkedIn
+      const defaultDesc = `Check out ${profile.username}'s official ReachMe profile. Discover all my latest links, exclusive products, social media content, and seamless ways to get in touch with me in one convenient place.`;
+
+      // Use the user's bio if it's long enough, otherwise use the fallback
+      let desc = profile.bio || "";
+      if (desc.length < 100) {
+        desc = desc ? `${desc} | ${defaultDesc}` : defaultDesc;
+      }
+
+      // 5. Build the specific meta tags (✅ Added og:url and link rel=canonical)
       const customMetaTags = `
         <meta property="og:title" content="${title}" />
         <meta property="og:description" content="${desc}" />
         <meta property="og:image" content="${image}" />
+        <meta property="og:url" content="${profileUrl}" />
+        <meta property="og:type" content="profile" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="${title}" />
         <meta name="twitter:description" content="${desc}" />
         <meta name="twitter:image" content="${image}" />
+        <link rel="canonical" href="${profileUrl}" />
       `;
+
+      // ✅ FIX 2: Strip out any existing canonical tag so LinkedIn doesn't get confused
+      html = html.replace(/<link rel="canonical"[^>]*>/i, "");
 
       // 6. Inject the dynamic tags right before the closing </head> tag
       html = html.replace("</head>", `${customMetaTags}\n</head>`);
