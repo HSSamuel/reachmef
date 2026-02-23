@@ -83,8 +83,8 @@ export function AppearanceEditor() {
       const file = e.target.files[0];
       if (!file) return;
 
-      if (isVideo && file.size > 10 * 1024 * 1024) {
-        throw new Error("Video must be under 10MB");
+      if (isVideo && file.size > 20 * 1024 * 1024) {
+        throw new Error("Video must be under 20MB");
       }
 
       // ✅ 1. Delete the old file from Cloudinary if replacing an existing one

@@ -4,11 +4,11 @@ export default async (request, context) => {
 
   // 1. Skip static assets and standard routes
   if (
-    path.includes(".") || 
-    path.startsWith("/api/") || 
-    path === "/" || 
-    path === "/login" || 
-    path === "/register" || 
+    path.includes(".") ||
+    path.startsWith("/api/") ||
+    path === "/" ||
+    path === "/login" ||
+    path === "/register" ||
     path === "/dashboard"
   ) {
     return context.next();
@@ -24,18 +24,22 @@ export default async (request, context) => {
 
   try {
     // 4. Fetch the specific user's profile from your Render backend
-    const apiRes = await fetch(`https://reachme-1fqo.onrender.com/api/profiles/${username}`);
-    
+    const apiRes = await fetch(
+      `https://reachme-1fqo.onrender.com/api/profiles/${username}`,
+    );
+
     if (apiRes.ok) {
       const profile = await apiRes.json();
 
       const title = profile.full_name || `@${profile.username}`;
-      const image = profile.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${profile.username}`;
+      const image =
+        profile.avatar_url ||
+        `https://api.dicebear.com/7.x/initials/png?seed=${profile.username}`;
       const profileUrl = `https://reachme.netlify.app/${username}`;
 
       // Create a fallback description > 100 characters for LinkedIn
       const defaultDesc = `Check out ${profile.username}'s official ReachMe profile. Discover all my latest links, exclusive products, social media content, and seamless ways to get in touch with me in one convenient place.`;
-      
+
       let desc = profile.bio || "";
       if (desc.length < 100) {
         desc = desc ? `${desc} | ${defaultDesc}` : defaultDesc;
@@ -56,16 +60,19 @@ export default async (request, context) => {
       `;
 
       // ✅ THE MAGIC FIX: Aggressively strip out ALL existing default tags so LinkedIn doesn't get confused
-      html = html.replace(/<meta property="og:[^>]*>/gi, '');
-      html = html.replace(/<meta name="twitter:[^>]*>/gi, '');
-      html = html.replace(/<link rel="canonical"[^>]*>/gi, '');
-      html = html.replace(/<meta name="description"[^>]*>/gi, '');
-      
+      html = html.replace(/<meta property="og:[^>]*>/gi, "");
+      html = html.replace(/<meta name="twitter:[^>]*>/gi, "");
+      html = html.replace(/<link rel="canonical"[^>]*>/gi, "");
+      html = html.replace(/<meta name="description"[^>]*>/gi, "");
+
       // 6. Inject the dynamic tags safely
       html = html.replace("</head>", `${customMetaTags}\n</head>`);
-      
+
       // Update the main page title
-      html = html.replace(/<title>(.*?)<\/title>/, `<title>${title} | ReachMe</title>`);
+      html = html.replace(
+        /<title>(.*?)<\/title>/,
+        `<title>${title} | ReachMe</title>`,
+      );
     }
   } catch (err) {
     console.error("Edge Function Error:", err);
