@@ -4,17 +4,17 @@ export default async (request, context) => {
 
   // 1. Skip static assets and standard routes
   if (
-    path.includes(".") ||
-    path.startsWith("/api/") ||
-    path === "/" ||
-    path === "/login" ||
-    path === "/register" ||
+    path.includes(".") || 
+    path.startsWith("/api/") || 
+    path === "/" || 
+    path === "/login" || 
+    path === "/register" || 
     path === "/dashboard"
   ) {
     return context.next();
   }
 
-  // 2. Extract the username from the URL (e.g., /hssamuel -> hssamuel)
+  // 2. Extract the username from the URL
   const username = path.split("/")[1];
   if (!username) return context.next();
 
@@ -24,29 +24,24 @@ export default async (request, context) => {
 
   try {
     // 4. Fetch the specific user's profile from your Render backend
-    const apiRes = await fetch(
-      `https://reachme-1fqo.onrender.com/api/profiles/${username}`,
-    );
-
+    const apiRes = await fetch(`https://reachme-1fqo.onrender.com/api/profiles/${username}`);
+    
     if (apiRes.ok) {
       const profile = await apiRes.json();
 
       const title = profile.full_name || `@${profile.username}`;
-      const image =
-        profile.avatar_url ||
-        `https://api.dicebear.com/7.x/initials/png?seed=${profile.username}`;
+      const image = profile.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${profile.username}`;
       const profileUrl = `https://reachme.netlify.app/${username}`;
 
-      // ✅ FIX 1: Create a fallback description > 100 characters for LinkedIn
+      // Create a fallback description > 100 characters for LinkedIn
       const defaultDesc = `Check out ${profile.username}'s official ReachMe profile. Discover all my latest links, exclusive products, social media content, and seamless ways to get in touch with me in one convenient place.`;
-
-      // Use the user's bio if it's long enough, otherwise use the fallback
+      
       let desc = profile.bio || "";
       if (desc.length < 100) {
         desc = desc ? `${desc} | ${defaultDesc}` : defaultDesc;
       }
 
-      // 5. Build the specific meta tags (✅ Added og:url and link rel=canonical)
+      // 5. Build the specific meta tags
       const customMetaTags = `
         <meta property="og:title" content="${title}" />
         <meta property="og:description" content="${desc}" />
@@ -60,23 +55,22 @@ export default async (request, context) => {
         <link rel="canonical" href="${profileUrl}" />
       `;
 
-      // ✅ FIX 2: Strip out any existing canonical tag so LinkedIn doesn't get confused
-      html = html.replace(/<link rel="canonical"[^>]*>/i, "");
-
-      // 6. Inject the dynamic tags right before the closing </head> tag
+      // ✅ THE MAGIC FIX: Aggressively strip out ALL existing default tags so LinkedIn doesn't get confused
+      html = html.replace(/<meta property="og:[^>]*>/gi, '');
+      html = html.replace(/<meta name="twitter:[^>]*>/gi, '');
+      html = html.replace(/<link rel="canonical"[^>]*>/gi, '');
+      html = html.replace(/<meta name="description"[^>]*>/gi, '');
+      
+      // 6. Inject the dynamic tags safely
       html = html.replace("</head>", `${customMetaTags}\n</head>`);
-
+      
       // Update the main page title
-      html = html.replace(
-        /<title>(.*?)<\/title>/,
-        `<title>${title} | ReachMe</title>`,
-      );
+      html = html.replace(/<title>(.*?)<\/title>/, `<title>${title} | ReachMe</title>`);
     }
   } catch (err) {
     console.error("Edge Function Error:", err);
   }
 
-  // 7. Return the modified HTML to the social media bot
   return new Response(html, {
     headers: { "content-type": "text/html" },
   });
