@@ -187,11 +187,12 @@ export function PublicProfile() {
               onClick={() => profile.story_video_url && setIsVideoOpen(true)}
               className={`relative rounded-full mb-4 shrink-0 ${
                 profile.story_video_url
-                  ? "p-1 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 cursor-pointer hover:scale-105 transition-transform shadow-xl shadow-pink-500/30 animate-pulse"
+                  ? "p-1.5 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 cursor-pointer hover:scale-105 transition-transform shadow-xl shadow-pink-500/30 animate-pulse"
                   : "p-0"
               }`}
             >
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-[3px] border-white shadow-xl overflow-hidden bg-white">
+              {/* ✨ UPDATED: Increased sizing to w-32 h-32 (Mobile) and w-40 h-40 (Desktop) */}
+              <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-[4px] border-white shadow-2xl overflow-hidden bg-white">
                 <img
                   src={displayAvatar}
                   alt={profile.username}

@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore";
 import { useProfile } from "../../../hooks/useProfile";
-import { api } from "../../../config/api"; // ✅ Replaced supabase auth check with api
+import { api } from "../../../config/api";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   LayoutDashboard,
@@ -45,26 +45,21 @@ export function DashboardLayout() {
   const qrCodeRef = useRef(null);
   const downloadQrRef = useRef(null);
 
-  // ✅ ZOMBIE KILLER: Check if user actually exists on mount
   useEffect(() => {
     const verifyUserExists = async () => {
       try {
-        // ✅ Check API directly to see if user session is valid
         await api.get("/auth/me");
       } catch (error) {
         console.warn("User session invalid or user deleted by admin.");
-
         toast.error("Your session has expired or account was removed.", {
-          id: "session-expired", // Prevents duplicates
+          id: "session-expired",
           icon: "🔒",
           duration: 5000,
         });
-
         await signOut();
         navigate("/login", { replace: true });
       }
     };
-
     verifyUserExists();
   }, [signOut, navigate]);
 
@@ -73,7 +68,6 @@ export function DashboardLayout() {
     navigate("/login");
   };
 
-  // Close dropdowns if clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
@@ -93,7 +87,6 @@ export function DashboardLayout() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Convert Avatar to Base64 for QR Safety
   useEffect(() => {
     if (shareOpen && profile?.avatar_url) {
       const img = new Image();
@@ -120,9 +113,13 @@ export function DashboardLayout() {
     }
   }, [shareOpen, profile?.avatar_url]);
 
+  const cleanUsername = profile?.username ? profile.username.trim() : "";
+  const profileUrl = cleanUsername
+    ? `${window.location.origin}/${cleanUsername}`
+    : window.location.origin;
+
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/${profile?.username}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(profileUrl);
     setCopied(true);
     toast.success("Link copied!");
     setTimeout(() => setCopied(false), 2000);
@@ -137,14 +134,14 @@ export function DashboardLayout() {
       const image = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = image;
-      link.download = `reachme-qr-${profile?.username || "code"}-high-res.png`;
+      link.download = `reachme-qr-${cleanUsername || "profile"}-hd.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
       toast.success("High-quality QR downloaded!");
     } catch (error) {
-      console.error(error);
+      console.error("QR Download Error:", error);
       toast.error("Could not download QR Code.");
     }
   };
@@ -159,7 +156,7 @@ export function DashboardLayout() {
   ];
 
   const qrSettings = {
-    value: `${window.location.origin}/${profile?.username}`,
+    value: profileUrl,
     bgColor: "#ffffff",
     fgColor: "#0f172a",
     level: "H",
@@ -178,11 +175,9 @@ export function DashboardLayout() {
 
   return (
     <div className="min-h-screen font-sans text-slate-900 bg-transparent">
-      {/* 1. THE TOPBAR */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-xl border-b border-white/10 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* BRAND */}
             <Link
               to="/dashboard"
               className="flex items-center gap-3 flex-shrink-0 group"
@@ -195,9 +190,7 @@ export function DashboardLayout() {
               </span>
             </Link>
 
-            {/* ACTIONS */}
             <div className="flex items-center gap-3 md:gap-4">
-              {/* MENU */}
               <div className="relative hidden lg:block" ref={navRef}>
                 <button
                   onClick={() => setNavOpen(!navOpen)}
@@ -247,7 +240,6 @@ export function DashboardLayout() {
                 )}
               </div>
 
-              {/* SHARE BUTTON */}
               <button
                 onClick={() => setShareOpen(true)}
                 className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-brand-600 text-white rounded-full text-sm font-bold hover:bg-brand-500 transition-all shadow-lg shadow-brand-900/20 active:scale-95 border border-transparent"
@@ -256,7 +248,6 @@ export function DashboardLayout() {
                 <span className="hidden sm:inline">Share</span>
               </button>
 
-              {/* PROFILE DROPDOWN */}
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}
@@ -314,7 +305,6 @@ export function DashboardLayout() {
                 )}
               </div>
 
-              {/* MOBILE MENU TOGGLE */}
               <div className="lg:hidden relative" ref={mobileMenuRef}>
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -368,7 +358,6 @@ export function DashboardLayout() {
         </div>
       </nav>
 
-      {/* SHARE MODAL */}
       {shareOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm relative transform transition-all scale-100">
@@ -403,7 +392,7 @@ export function DashboardLayout() {
             <div className="space-y-3">
               <div className="flex gap-2">
                 <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-600 truncate flex items-center">
-                  {window.location.origin}/{profile?.username}
+                  {profileUrl}
                 </div>
                 <button
                   onClick={handleCopyLink}
@@ -418,20 +407,24 @@ export function DashboardLayout() {
                 className="w-full flex items-center justify-center gap-2 py-3 border border-slate-200 rounded-xl text-slate-700 font-bold hover:bg-slate-50 transition-colors"
               >
                 <Download size={18} />
-                Download High-Res QR Code
+                Download HD QR Code
               </button>
             </div>
 
-            <div style={{ display: "none" }} ref={downloadQrRef}>
+            <div
+              className="absolute left-[-9999px] top-[-9999px] opacity-0 pointer-events-none"
+              aria-hidden="true"
+              ref={downloadQrRef}
+            >
               <QRCodeCanvas
                 {...qrSettings}
-                size={1024}
+                size={2048} // ✨ Upgraded to massive 2K Resolution
                 imageSettings={
                   qrSettings.imageSettings
                     ? {
                         ...qrSettings.imageSettings,
-                        height: 180,
-                        width: 180,
+                        height: 360, // Scaled up logo size
+                        width: 360,
                       }
                     : undefined
                 }
@@ -441,7 +434,6 @@ export function DashboardLayout() {
         </div>
       )}
 
-      {/* 4. MAIN CONTENT */}
       <main className="pt-24 px-4 pb-12 max-w-7xl mx-auto min-h-screen">
         <div className="animate-fade-in">
           <Outlet />

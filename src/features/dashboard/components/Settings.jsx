@@ -106,13 +106,18 @@ export function Settings() {
   const handleDownloadQR = async () => {
     try {
       setDownloading(true);
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${window.location.origin}/${profile.username}`;
+      const cleanUsername = profile?.username ? profile.username.trim() : "";
+      const profileUrl = `${window.location.origin}/${cleanUsername}`;
+
+      // ✅ FIX: encodeURIComponent is required to safely pass URLs to a query string
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(profileUrl)}`;
+
       const response = await fetch(qrUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${profile.username}-qr.png`;
+      link.download = `${cleanUsername || "profile"}-qr.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

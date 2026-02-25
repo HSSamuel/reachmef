@@ -23,10 +23,17 @@ export default async (request, context) => {
   let html = await response.text();
 
   try {
+    // ✅ PERFORMANCE FIX: Ensure Edge Function doesn't hang if backend is slow/asleep
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500); // 1.5s timeout
+
     // 4. Fetch the specific user's profile from your Render backend
     const apiRes = await fetch(
       `https://reachme-1fqo.onrender.com/api/profiles/${username}`,
+      { signal: controller.signal }
     );
+
+    clearTimeout(timeoutId);
 
     if (apiRes.ok) {
       const profile = await apiRes.json();
@@ -75,7 +82,9 @@ export default async (request, context) => {
       );
     }
   } catch (err) {
-    console.error("Edge Function Error:", err);
+    // If the request times out or fails, it will just log the error and serve the default HTML 
+    // seamlessly without crashing the page load for the user.
+    console.error("Edge Function Error or Timeout:", err);
   }
 
   return new Response(html, {
