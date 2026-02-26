@@ -23,71 +23,67 @@ export default async (request, context) => {
   let html = await response.text();
 
   try {
-    // Ensure Edge Function doesn't hang if backend is slow/asleep
+    // ✅ PERFORMANCE FIX: Ensure Edge Function doesn't hang if backend is slow/asleep
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 1500); // 1.5s timeout
 
     // 4. Fetch the specific user's profile from your Render backend
     const apiRes = await fetch(
       `https://reachme-1fqo.onrender.com/api/profiles/${username}`,
-      { signal: controller.signal },
+      { signal: controller.signal }
     );
 
     clearTimeout(timeoutId);
 
     if (apiRes.ok) {
-      // ✅ FIX: The backend returns { profile: {...}, links: [...], products: [...] }
-      // We must extract the 'profile' object from the parsed JSON data.
-      const data = await apiRes.json();
-      const profile = data.profile;
+      const profile = await apiRes.json();
 
-      if (profile) {
-        const title = profile.full_name || `@${profile.username}`;
-        const image =
-          profile.avatar_url ||
-          `https://api.dicebear.com/7.x/initials/png?seed=${profile.username}`;
-        const profileUrl = `https://reachme.netlify.app/${profile.username}`;
+      const title = profile.full_name || `@${profile.username}`;
+      const image =
+        profile.avatar_url ||
+        `https://api.dicebear.com/7.x/initials/png?seed=${profile.username}`;
+      const profileUrl = `https://reachme.netlify.app/${username}`;
 
-        // Create a fallback description > 100 characters for LinkedIn
-        const defaultDesc = `Check out ${profile.username}'s official ReachMe profile. Discover all my latest links, exclusive products, social media content, and seamless ways to get in touch with me in one convenient place.`;
+      // Create a fallback description > 100 characters for LinkedIn
+      const defaultDesc = `Check out ${profile.username}'s official ReachMe profile. Discover all my latest links, exclusive products, social media content, and seamless ways to get in touch with me in one convenient place.`;
 
-        let desc = profile.bio || "";
-        if (desc.length < 100) {
-          desc = desc ? `${desc} | ${defaultDesc}` : defaultDesc;
-        }
-
-        // 5. Build the specific meta tags
-        const customMetaTags = `
-          <meta property="og:title" content="${title}" />
-          <meta property="og:description" content="${desc}" />
-          <meta property="og:image" content="${image}" />
-          <meta property="og:url" content="${profileUrl}" />
-          <meta property="og:type" content="profile" />
-          <meta name="twitter:card" content="summary_large_image" />
-          <meta name="twitter:title" content="${title}" />
-          <meta name="twitter:description" content="${desc}" />
-          <meta name="twitter:image" content="${image}" />
-          <link rel="canonical" href="${profileUrl}" />
-        `;
-
-        // Aggressively strip out ALL existing default tags so LinkedIn doesn't get confused
-        html = html.replace(/<meta property="og:[^>]*>/gi, "");
-        html = html.replace(/<meta name="twitter:[^>]*>/gi, "");
-        html = html.replace(/<link rel="canonical"[^>]*>/gi, "");
-        html = html.replace(/<meta name="description"[^>]*>/gi, "");
-
-        // 6. Inject the dynamic tags safely
-        html = html.replace("</head>", `${customMetaTags}\n</head>`);
-
-        // Update the main page title
-        html = html.replace(
-          /<title>(.*?)<\/title>/,
-          `<title>${title} | ReachMe</title>`,
-        );
+      let desc = profile.bio || "";
+      if (desc.length < 100) {
+        desc = desc ? `${desc} | ${defaultDesc}` : defaultDesc;
       }
+
+      // 5. Build the specific meta tags
+      const customMetaTags = `
+        <meta property="og:title" content="${title}" />
+        <meta property="og:description" content="${desc}" />
+        <meta property="og:image" content="${image}" />
+        <meta property="og:url" content="${profileUrl}" />
+        <meta property="og:type" content="profile" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="${title}" />
+        <meta name="twitter:description" content="${desc}" />
+        <meta name="twitter:image" content="${image}" />
+        <link rel="canonical" href="${profileUrl}" />
+      `;
+
+      // ✅ THE MAGIC FIX: Aggressively strip out ALL existing default tags so LinkedIn doesn't get confused
+      html = html.replace(/<meta property="og:[^>]*>/gi, "");
+      html = html.replace(/<meta name="twitter:[^>]*>/gi, "");
+      html = html.replace(/<link rel="canonical"[^>]*>/gi, "");
+      html = html.replace(/<meta name="description"[^>]*>/gi, "");
+
+      // 6. Inject the dynamic tags safely
+      html = html.replace("</head>", `${customMetaTags}\n</head>`);
+
+      // Update the main page title
+      html = html.replace(
+        /<title>(.*?)<\/title>/,
+        `<title>${title} | ReachMe</title>`,
+      );
     }
   } catch (err) {
-    // If the request times out or fails, serve the default HTML seamlessly
+    // If the request times out or fails, it will just log the error and serve the default HTML 
+    // seamlessly without crashing the page load for the user.
     console.error("Edge Function Error or Timeout:", err);
   }
 
