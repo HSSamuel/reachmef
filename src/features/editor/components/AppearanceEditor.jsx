@@ -29,12 +29,37 @@ import {
   Check,
   Mail,
   Video,
+  Sparkles,
 } from "lucide-react";
 import { api } from "../../../config/api";
 import { Switch } from "../../../components/ui/Switch";
 import { Input } from "../../../components/ui/Input";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
+
+// ✨ Premium Gradient Presets
+const GRADIENT_PRESETS = [
+  {
+    label: "Sunset",
+    value: "linear-gradient(135deg, #f59e0b 0%, #ec4899 100%)",
+  },
+  {
+    label: "Ocean",
+    value: "linear-gradient(135deg, #0ea5e9 0%, #10b981 100%)",
+  },
+  {
+    label: "Midnight",
+    value: "linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)",
+  },
+  {
+    label: "Aurora",
+    value: "linear-gradient(135deg, #c084fc 0%, #ec4899 50%, #f59e0b 100%)",
+  },
+  {
+    label: "Cosmic",
+    value: "linear-gradient(135deg, #0f172a 0%, #4c1d95 100%)",
+  },
+];
 
 export function AppearanceEditor() {
   const { profile, loading, updateProfile, deleteFile } = useProfile();
@@ -87,7 +112,7 @@ export function AppearanceEditor() {
         throw new Error("Video must be under 20MB");
       }
 
-      // ✅ 1. Delete the old file from Cloudinary if replacing an existing one
+      // Delete the old file from Cloudinary if replacing an existing one
       const oldFileUrl = profile[field];
       if (oldFileUrl) {
         await deleteFile(oldFileUrl);
@@ -96,7 +121,7 @@ export function AppearanceEditor() {
       const formData = new FormData();
       formData.append("image", file);
 
-      // ✅ 2. Upload the new file
+      // Upload the new file
       const { data } = await api.post("/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -116,21 +141,19 @@ export function AppearanceEditor() {
     }
   };
 
-  // ✅ Handle physical removal of the Story Video
   const handleRemoveStory = async () => {
     if (profile.story_video_url) {
-      await deleteFile(profile.story_video_url); // Wipe from Cloudinary
-      await updateProfile({ story_video_url: "" }); // Clear from DB
+      await deleteFile(profile.story_video_url);
+      await updateProfile({ story_video_url: "" });
       toast.success("Story removed!");
     }
   };
 
-  // ✅ Handle physical removal of the Background Image
   const handleRemoveBackground = async (e) => {
     e.stopPropagation();
     if (profile.background_url) {
-      await deleteFile(profile.background_url); // Wipe from Cloudinary
-      await updateProfile({ background_url: null }); // Clear from DB
+      await deleteFile(profile.background_url);
+      await updateProfile({ background_url: null });
       toast.success("Background removed!");
     }
   };
@@ -158,7 +181,7 @@ export function AppearanceEditor() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start">
         {/* LEFT COLUMN: ACCORDION EDITOR */}
         <div className="xl:col-span-2 space-y-4">
-          {/* 1. PROFILE DETAILS (Blue) */}
+          {/* 1. PROFILE DETAILS */}
           <AccordionItem
             title="Profile & Story"
             icon={<Layout size={18} />}
@@ -212,6 +235,21 @@ export function AppearanceEditor() {
                   />
                 </div>
 
+                {/* ✨ Professional Title / Credentials Input */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">
+                    Professional Title / Credentials
+                  </label>
+                  <Input
+                    placeholder="e.g. Ph.D, M.Sc, Software Engineer"
+                    value={profile?.profile_title || ""}
+                    onChange={(e) =>
+                      updateProfile({ profile_title: e.target.value })
+                    }
+                    className="h-10 text-sm bg-white border-slate-200"
+                  />
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">
                     Bio
@@ -258,7 +296,7 @@ export function AppearanceEditor() {
                   </label>
                 </div>
 
-                {/* ✅ Video Story Upload */}
+                {/* Video Story Upload */}
                 <div className="text-center w-full">
                   <label className="flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-full cursor-pointer hover:scale-105 transition-transform shadow-md">
                     {uploadingVideo ? (
@@ -290,7 +328,7 @@ export function AppearanceEditor() {
             </div>
           </AccordionItem>
 
-          {/* 2. BACKGROUND & THEME (Purple) */}
+          {/* 2. BACKGROUND & THEME */}
           <AccordionItem
             title="Background & Theme"
             icon={<Palette size={18} />}
@@ -298,10 +336,11 @@ export function AppearanceEditor() {
             onClick={() => toggleSection("theme")}
             colorClass="bg-purple-50/50 border-purple-100 hover:border-purple-200"
           >
-            <div className="space-y-5">
+            <div className="space-y-6">
+              {/* Solid Colors & Image */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase">
-                  Page Background
+                  Solid Colors & Image
                 </label>
                 <div className="grid grid-cols-4 gap-3">
                   <ColorPreset
@@ -331,7 +370,11 @@ export function AppearanceEditor() {
                   <div className="relative h-16 rounded-lg border border-slate-200 overflow-hidden group bg-white">
                     <input
                       type="color"
-                      value={profile.background_color || "#ffffff"}
+                      value={
+                        profile.background_color?.startsWith("#")
+                          ? profile.background_color
+                          : "#ffffff"
+                      }
                       onChange={(e) =>
                         updateProfile({
                           background_url: null,
@@ -377,6 +420,33 @@ export function AppearanceEditor() {
                 </div>
               </div>
 
+              {/* ✨ Premium Gradients */}
+              <div className="space-y-2 pt-4 border-t border-slate-100">
+                <label className="text-xs font-bold text-indigo-500 flex items-center gap-1.5 uppercase tracking-wide">
+                  <Sparkles size={14} className="fill-indigo-500" /> Premium
+                  Gradients
+                </label>
+                <div className="grid grid-cols-5 gap-3">
+                  {GRADIENT_PRESETS.map((grad) => (
+                    <button
+                      key={grad.label}
+                      onClick={() =>
+                        updateProfile({
+                          background_url: null,
+                          background_color: grad.value,
+                        })
+                      }
+                      className={`h-16 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-1 shadow-sm hover:scale-105 active:scale-95 ${
+                        profile.background_color === grad.value
+                          ? "border-white ring-2 ring-indigo-500"
+                          : "border-transparent hover:ring-2 hover:ring-indigo-300 hover:ring-offset-1"
+                      }`}
+                      style={{ background: grad.value }}
+                    ></button>
+                  ))}
+                </div>
+              </div>
+
               <div className="space-y-2 pt-4 border-t border-slate-100">
                 <label className="text-xs font-bold text-slate-500 uppercase">
                   Button & Text Color
@@ -400,7 +470,7 @@ export function AppearanceEditor() {
             </div>
           </AccordionItem>
 
-          {/* 3. BUTTON STYLE (Pink) */}
+          {/* 3. BUTTON STYLE */}
           <AccordionItem
             title="Buttons"
             icon={<LayoutDashboard size={18} />}
@@ -430,7 +500,7 @@ export function AppearanceEditor() {
             </div>
           </AccordionItem>
 
-          {/* 4. TYPOGRAPHY (Orange) */}
+          {/* 4. TYPOGRAPHY */}
           <AccordionItem
             title="Typography"
             icon={<Type size={18} />}
@@ -464,7 +534,7 @@ export function AppearanceEditor() {
             </div>
           </AccordionItem>
 
-          {/* 5. SOCIAL ICONS (Emerald) */}
+          {/* 5. SOCIAL ICONS */}
           <AccordionItem
             title="Social Icons & Contact"
             icon={<Share2 size={18} />}
@@ -577,7 +647,7 @@ export function AppearanceEditor() {
             </div>
           </AccordionItem>
 
-          {/* 6. FEATURES (Yellow) */}
+          {/* 6. FEATURES */}
           <AccordionItem
             title="Features"
             icon={<Heart size={18} />}
@@ -655,7 +725,7 @@ export function AppearanceEditor() {
         </div>
       </div>
 
-      {/* ✅ 1. COMPACT PREVIEW BUTTON (Circular FAB) */}
+      {/* ✅ COMPACT PREVIEW BUTTON */}
       <button
         onClick={() => setPreviewOpen(true)}
         className="xl:hidden fixed bottom-4 right-4 bg-slate-900 text-white p-3.5 rounded-full shadow-2xl z-40 hover:scale-110 hover:bg-slate-800 transition-all active:scale-90"
@@ -664,10 +734,9 @@ export function AppearanceEditor() {
         <Eye size={24} />
       </button>
 
-      {/* ✅ 2. MODAL WITH CLOSE BUTTON AT BOTTOM */}
+      {/* ✅ MODAL PREVIEW */}
       {previewOpen && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-sm p-4 animate-fade-in">
-          {/* Content Area - Pushed to Bottom */}
           <div className="relative flex-1 w-full flex flex-col items-center justify-end overflow-hidden pb-6">
             <div
               onClick={(e) => e.stopPropagation()}
@@ -676,8 +745,6 @@ export function AppearanceEditor() {
               <PhonePreview profile={profile} />
             </div>
           </div>
-
-          {/* Close Button - At Bottom */}
           <button
             onClick={() => setPreviewOpen(false)}
             className="flex items-center gap-2 bg-white/10 text-white px-6 py-3 rounded-full backdrop-blur-md border border-white/20 shadow-xl transition-all hover:bg-white/20 active:scale-95 mb-6 shrink-0"

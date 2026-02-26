@@ -19,6 +19,7 @@ import {
   Mic2,
   Mail,
   X,
+  Play,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -26,7 +27,6 @@ export function PhonePreview({ profile }) {
   const { user } = useAuthStore();
   const { links } = useLinks();
 
-  // ✅ NEW: State for Video Modal
   const [isVideoOpen, setIsVideoOpen] = useState(false);
 
   if (!profile)
@@ -38,13 +38,34 @@ export function PhonePreview({ profile }) {
 
   const displayName = profile.full_name || profile.username || "Creator";
 
+  const getContrastYIQ = (colorString) => {
+    if (!colorString) return "black";
+
+    const hexMatch = colorString.match(/#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})/);
+    let hexcolor = hexMatch ? hexMatch[0] : "#ffffff";
+
+    hexcolor = hexcolor.replace("#", "");
+    if (hexcolor.length === 3) {
+      hexcolor = hexcolor
+        .split("")
+        .map((char) => char + char)
+        .join("");
+    }
+
+    var r = parseInt(hexcolor.substr(0, 2), 16);
+    var g = parseInt(hexcolor.substr(2, 2), 16);
+    var b = parseInt(hexcolor.substr(4, 2), 16);
+    var yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 128 ? "black" : "white";
+  };
+
   const bgStyle = profile.background_url
     ? {
         backgroundImage: `url(${profile.background_url})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }
-    : { backgroundColor: profile.background_color || "#f8fafc" };
+    : { background: profile.background_color || "#f8fafc" };
 
   const isDarkTheme =
     !profile.background_url &&
@@ -63,7 +84,6 @@ export function PhonePreview({ profile }) {
   return (
     <>
       <div className="w-[320px] h-[650px] border-[12px] border-slate-900 rounded-[3rem] bg-slate-900 shadow-2xl overflow-hidden ring-4 ring-slate-200 mx-auto origin-top scale-[0.8] sm:scale-100 transition-transform relative">
-        {/* Dynamic Notch */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900 rounded-b-xl z-30 flex justify-center items-end pb-1.5">
           <div className="w-12 h-1 bg-slate-800 rounded-full"></div>
         </div>
@@ -79,25 +99,40 @@ export function PhonePreview({ profile }) {
           <div className="relative z-10 flex flex-col gap-5">
             {/* 1. PROFILE HEADER */}
             <div className="flex flex-col items-center text-center mt-2">
-              {/* ✅ STORY RING WRAPPER */}
-              <div
-                onClick={() => profile.story_video_url && setIsVideoOpen(true)}
-                className={`relative rounded-full mb-3 shrink-0 ${
-                  profile.story_video_url
-                    ? "p-1 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 cursor-pointer hover:scale-105 transition-transform shadow-xl shadow-pink-500/30 animate-pulse"
-                    : "p-0"
-                }`}
-              >
-                <div className="w-20 h-20 rounded-full border-[3px] border-white overflow-hidden bg-white shadow-lg">
-                  <img
-                    src={
-                      profile.avatar_url ||
-                      `https://api.dicebear.com/7.x/initials/svg?seed=${displayName}`
-                    }
-                    className="w-full h-full object-cover"
-                    alt="Avatar"
-                  />
+              <div className="relative mb-3">
+                <div
+                  onClick={() =>
+                    profile.story_video_url && setIsVideoOpen(true)
+                  }
+                  className={`relative rounded-full shrink-0 ${
+                    profile.story_video_url
+                      ? "p-1 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 cursor-pointer hover:scale-105 transition-transform shadow-xl shadow-pink-500/30"
+                      : "p-0"
+                  }`}
+                >
+                  <div className="w-20 h-20 rounded-full border-[3px] border-white overflow-hidden bg-white shadow-lg">
+                    <img
+                      src={
+                        profile.avatar_url ||
+                        `https://api.dicebear.com/7.x/initials/svg?seed=${displayName}`
+                      }
+                      className="w-full h-full object-cover"
+                      alt="Avatar"
+                    />
+                  </div>
                 </div>
+
+                {profile.story_video_url && (
+                  <div
+                    onClick={() => setIsVideoOpen(true)}
+                    className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-slate-900 text-white px-2.5 py-1 rounded-full shadow-xl border-[1.5px] border-white cursor-pointer hover:scale-110 transition-transform z-20 animate-float"
+                  >
+                    <Play size={8} className="fill-white" />
+                    <span className="text-[8px] font-bold uppercase tracking-widest whitespace-nowrap">
+                      Play
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div
@@ -108,11 +143,20 @@ export function PhonePreview({ profile }) {
                 }`}
               >
                 <h2
-                  className={`font-bold text-sm leading-tight transition-colors duration-300 ${
+                  className={`font-bold text-sm flex items-end justify-center gap-1.5 transition-colors duration-300 ${
                     isDarkTheme ? "text-white" : "text-slate-900"
                   }`}
                 >
-                  {displayName}
+                  <span>{displayName}</span>
+                  {profile.profile_title && (
+                    <span
+                      className={`text-[10px] font-medium tracking-wide pb-[1px] ${
+                        isDarkTheme ? "text-white/70" : "text-slate-500"
+                      }`}
+                    >
+                      {profile.profile_title}
+                    </span>
+                  )}
                 </h2>
 
                 {profile.bio && (
@@ -140,7 +184,7 @@ export function PhonePreview({ profile }) {
                 color="#16a34a"
               />
               <SocialIcon
-                Icon={WhatsApp} // ✅ Official WhatsApp Icon
+                Icon={WhatsApp}
                 url={profile.social_whatsapp}
                 color="#25D366"
               />
@@ -237,43 +281,42 @@ export function PhonePreview({ profile }) {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ✅ THE VIDEO MODAL OVERLAY */}
-      <AnimatePresence>
-        {isVideoOpen && profile.story_video_url && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 rounded-[3rem]"
-          >
-            <div className="relative w-full max-w-sm aspect-[9/16] bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/10">
-              <video
-                src={profile.story_video_url}
-                autoPlay
-                controls
-                playsInline
-                className="w-full h-full object-cover"
-              />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsVideoOpen(false);
-                }}
-                className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/70 transition-colors z-50"
-              >
-                <X size={20} />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        {/* ✨ UPDATED: COMPACT PHONE SIMULATOR VIDEO MODAL */}
+        <AnimatePresence>
+          {isVideoOpen && profile.story_video_url && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="absolute inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center rounded-[2.5rem] overflow-hidden p-4"
+            >
+              <div className="relative w-full h-full max-h-[90%] bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/20 flex flex-col justify-center items-center">
+                <video
+                  src={profile.story_video_url}
+                  autoPlay
+                  controls
+                  playsInline
+                  className="w-full h-full object-contain"
+                />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsVideoOpen(false);
+                  }}
+                  className="absolute top-3 right-3 w-8 h-8 bg-black/60 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/80 transition-colors z-50 border border-white/10"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </>
   );
 }
 
-// --- SUB-COMPONENTS ---
 function ProductGrid({ isDarkTheme }) {
   const { products } = useProducts();
   const activeProducts = products.filter((p) => p.is_active);
@@ -350,17 +393,6 @@ function SocialIcon({ Icon, url, color }) {
   );
 }
 
-function getContrastYIQ(hexcolor) {
-  if (!hexcolor) return "black";
-  hexcolor = hexcolor.replace("#", "");
-  var r = parseInt(hexcolor.substr(0, 2), 16);
-  var g = parseInt(hexcolor.substr(2, 2), 16);
-  var b = parseInt(hexcolor.substr(4, 2), 16);
-  var yiq = (r * 299 + g * 587 + b * 114) / 1000;
-  return yiq >= 128 ? "black" : "white";
-}
-
-// ✅ Official Custom WhatsApp SVG Component
 const WhatsApp = ({ size = 24, className = "" }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

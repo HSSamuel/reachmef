@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api } from "../../../config/api"; // ✅ Use the configured API instance
+import { api } from "../../../config/api"; 
 
 export const usePublicProfile = (username) => {
   const [profile, setProfile] = useState(null);
@@ -11,7 +11,6 @@ export const usePublicProfile = (username) => {
   useEffect(() => {
     if (!username) return;
 
-    // ✅ EDGE CASE FIX: Prevent collision with the private "/me" route
     if (username.toLowerCase() === "me") {
       setError("Invalid profile URL");
       setLoading(false);
@@ -21,21 +20,14 @@ export const usePublicProfile = (username) => {
     async function fetchData() {
       try {
         setLoading(true);
-        // 1. Get Profile (Using 'api' automatically uses your Render URL in production)
-        const profileRes = await api.get(`/profiles/${username}`);
-        const profileData = profileRes.data;
+        // ✅ ONE single request gets everything
+        const { data } = await api.get(`/profiles/${username}`);
 
-        if (!profileData) throw new Error("Profile not found");
+        if (!data.profile) throw new Error("Profile not found");
 
-        // 2. Get Links and Products
-        const [linksRes, productsRes] = await Promise.all([
-          api.get(`/links/public/${profileData._id}`),
-          api.get(`/products/public/${profileData._id}`),
-        ]);
-
-        setProfile(profileData);
-        setLinks(linksRes.data || []);
-        setProducts(productsRes.data || []);
+        setProfile(data.profile);
+        setLinks(data.links || []);
+        setProducts(data.products || []);
       } catch (err) {
         console.error("Public Profile Error:", err);
         setError(err.response?.data?.error || err.message);

@@ -9,6 +9,7 @@ import {
   Heart,
   UserPlus,
   X,
+  Play,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -34,7 +35,6 @@ export function PublicProfile() {
   const { profile, links, products, loading, error } =
     usePublicProfile(username);
 
-  // ✅ NEW: State for Video Modal
   const [isVideoOpen, setIsVideoOpen] = useState(false);
 
   if (loading) {
@@ -69,9 +69,17 @@ export function PublicProfile() {
     }
   };
 
-  const getContrastYIQ = (hexcolor) => {
-    if (!hexcolor) return "black";
+  const getContrastYIQ = (colorString) => {
+    if (!colorString) return "black";
+    
+    const hexMatch = colorString.match(/#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})/);
+    let hexcolor = hexMatch ? hexMatch[0] : "#ffffff";
+    
     hexcolor = hexcolor.replace("#", "");
+    if (hexcolor.length === 3) {
+      hexcolor = hexcolor.split('').map(char => char + char).join('');
+    }
+  
     var r = parseInt(hexcolor.substr(0, 2), 16);
     var g = parseInt(hexcolor.substr(2, 2), 16);
     var b = parseInt(hexcolor.substr(4, 2), 16);
@@ -96,7 +104,7 @@ export function PublicProfile() {
         backgroundPosition: "center",
         backgroundAttachment: "fixed",
       }
-    : { backgroundColor: profile.background_color || "#f8fafc" };
+    : { background: profile.background_color || "#f8fafc" };
 
   const isDarkTheme =
     !profile.background_url &&
@@ -182,31 +190,52 @@ export function PublicProfile() {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center text-center mb-8 w-full"
           >
-            {/* ✅ STORY RING WRAPPER */}
-            <div
-              onClick={() => profile.story_video_url && setIsVideoOpen(true)}
-              className={`relative rounded-full mb-4 shrink-0 ${
-                profile.story_video_url
-                  ? "p-1.5 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 cursor-pointer hover:scale-105 transition-transform shadow-xl shadow-pink-500/30 animate-pulse"
-                  : "p-0"
-              }`}
-            >
-              {/* ✨ UPDATED: Increased sizing to w-32 h-32 (Mobile) and w-40 h-40 (Desktop) */}
-              <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-[4px] border-white shadow-2xl overflow-hidden bg-white">
-                <img
-                  src={displayAvatar}
-                  alt={profile.username}
-                  className="w-full h-full object-cover"
-                />
+            {/* STORY RING WRAPPER WITH FLOATING BADGE */}
+            <div className="relative mb-4">
+              <div
+                onClick={() => profile.story_video_url && setIsVideoOpen(true)}
+                className={`relative rounded-full shrink-0 ${
+                  profile.story_video_url
+                    ? "p-1.5 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 cursor-pointer hover:scale-105 transition-transform shadow-xl shadow-pink-500/30"
+                    : "p-0"
+                }`}
+              >
+                <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-[4px] border-white shadow-2xl overflow-hidden bg-white">
+                  <img
+                    src={displayAvatar}
+                    alt={profile.username}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
               </div>
+
+              {/* OVERLAPPING PLAY BADGE */}
+              {profile.story_video_url && (
+                <div 
+                  onClick={() => setIsVideoOpen(true)}
+                  className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-900 text-white px-4 py-1.5 rounded-full shadow-xl border-2 border-white cursor-pointer hover:scale-110 transition-transform z-20 animate-float"
+                >
+                  <Play size={12} className="fill-white" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">Play Story</span>
+                </div>
+              )}
             </div>
 
             <h1
-              className={`text-3xl md:text-4xl font-extrabold mb-2 tracking-tight transition-colors duration-300 ${
+              className={`text-3xl md:text-4xl font-extrabold tracking-tight transition-colors duration-300 flex flex-wrap items-end justify-center gap-2 mb-2 ${
                 isDarkBg ? "text-white" : "text-slate-900"
               }`}
             >
-              {profile.full_name || `@${profile.username}`}
+              <span>{profile.full_name || `@${profile.username}`}</span>
+              {profile.profile_title && (
+                <span
+                  className={`text-lg md:text-xl font-medium tracking-normal mb-0.5 ${
+                    isDarkBg ? "text-white/70" : "text-slate-500"
+                  }`}
+                >
+                  {profile.profile_title}
+                </span>
+              )}
             </h1>
 
             {profile.bio && (
@@ -240,7 +269,7 @@ export function PublicProfile() {
             )}
             {profile.social_whatsapp && (
               <SocialLink
-                Icon={WhatsApp} // ✅ Official WhatsApp Icon
+                Icon={WhatsApp}
                 url={profile.social_whatsapp}
                 isDark={isDarkBg}
                 color="#25D366"
@@ -488,29 +517,31 @@ export function PublicProfile() {
         </div>
       </div>
 
-      {/* ✅ THE VIDEO MODAL OVERLAY */}
+      {/* ✨ UPDATED: RESPONSIVE VIDEO MODAL */}
+      {/* max-h-[85dvh] prevents the browser URL bar from hiding the top/bottom of the video */}
+      {/* object-contain ensures the video is scaled perfectly without clipping the sides */}
       <AnimatePresence>
         {isVideoOpen && profile.story_video_url && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4"
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-6"
           >
-            <div className="relative w-full max-w-sm aspect-[9/16] bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+            <div className="relative w-full max-w-sm max-h-[85dvh] aspect-[9/16] bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/20 flex flex-col justify-center mx-auto">
               <video
                 src={profile.story_video_url}
                 autoPlay
                 controls
                 playsInline
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsVideoOpen(false);
                 }}
-                className="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/70 transition-colors z-50"
+                className="absolute top-4 right-4 w-10 h-10 bg-black/60 text-white rounded-full flex items-center justify-center backdrop-blur-md hover:bg-black/80 transition-colors z-50 border border-white/10"
               >
                 <X size={20} />
               </button>
@@ -543,7 +574,6 @@ function SocialLink({ Icon, url, isDark, color }) {
   );
 }
 
-// ✅ Official Custom WhatsApp SVG Component
 const WhatsApp = ({ size = 24, className = "" }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
