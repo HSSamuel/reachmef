@@ -136,28 +136,31 @@ export function PhonePreview({ profile }) {
               </div>
 
               <div
-                className={`px-4 py-2 rounded-2xl transition-colors duration-300 ${
+                className={`px-4 py-2 rounded-2xl transition-colors duration-300 w-full max-w-full flex flex-col items-center ${
                   profile.background_url
                     ? "bg-white/80 backdrop-blur-md shadow-sm border border-white/40"
                     : ""
                 }`}
               >
-                <h2
-                  className={`font-bold text-sm flex items-end justify-center gap-1.5 transition-colors duration-300 ${
-                    isDarkTheme ? "text-white" : "text-slate-900"
-                  }`}
-                >
-                  <span>{displayName}</span>
-                  {profile.profile_title && (
-                    <span
-                      className={`text-[10px] font-medium tracking-wide pb-[1px] ${
-                        isDarkTheme ? "text-white/70" : "text-slate-500"
-                      }`}
-                    >
-                      {profile.profile_title}
-                    </span>
-                  )}
-                </h2>
+                {/* ✅ FIX: Made heading single line without "..." truncation */}
+                <div className="w-full max-w-full overflow-x-auto no-scrollbar flex justify-center">
+                  <h2
+                    className={`font-bold flex items-baseline gap-1.5 transition-colors duration-300 whitespace-nowrap px-1 ${
+                      isDarkTheme ? "text-white" : "text-slate-900"
+                    }`}
+                  >
+                    <span className="text-[1.1rem]">{displayName}</span>
+                    {profile.profile_title && (
+                      <span
+                        className={`text-[0.7rem] font-medium tracking-wide pb-[1px] ${
+                          isDarkTheme ? "text-white/70" : "text-slate-500"
+                        }`}
+                      >
+                        {profile.profile_title}
+                      </span>
+                    )}
+                  </h2>
+                </div>
 
                 {profile.bio && (
                   <p
@@ -282,7 +285,6 @@ export function PhonePreview({ profile }) {
           </div>
         </div>
 
-        {/* ✨ UPDATED: COMPACT PHONE SIMULATOR VIDEO MODAL */}
         <AnimatePresence>
           {isVideoOpen && profile.story_video_url && (
             <motion.div

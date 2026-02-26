@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useProfile } from "../../../hooks/useProfile";
 import { PhonePreview } from "../../editor/components/PhonePreview";
+import imageCompression from "browser-image-compression"; // ✨ NEW: Client-side compression
 import {
   Upload,
   X,
@@ -112,6 +113,25 @@ export function AppearanceEditor() {
         throw new Error("Video must be under 20MB");
       }
 
+      let fileToUpload = file;
+
+      // ✨ NEW: Client-side Image Compression
+      if (!isVideo) {
+        const options = {
+          maxSizeMB: 1, // Compress to max 1MB
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        };
+        try {
+          fileToUpload = await imageCompression(file, options);
+        } catch (compressionError) {
+          console.warn(
+            "Image compression failed, using original file:",
+            compressionError,
+          );
+        }
+      }
+
       // Delete the old file from Cloudinary if replacing an existing one
       const oldFileUrl = profile[field];
       if (oldFileUrl) {
@@ -119,7 +139,7 @@ export function AppearanceEditor() {
       }
 
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("image", fileToUpload);
 
       // Upload the new file
       const { data } = await api.post("/upload", formData, {
@@ -235,7 +255,7 @@ export function AppearanceEditor() {
                   />
                 </div>
 
-                {/* ✨ Professional Title / Credentials Input */}
+                {/* Professional Title Input */}
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">
                     Professional Title / Credentials

@@ -71,15 +71,18 @@ export function PublicProfile() {
 
   const getContrastYIQ = (colorString) => {
     if (!colorString) return "black";
-    
+
     const hexMatch = colorString.match(/#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})/);
     let hexcolor = hexMatch ? hexMatch[0] : "#ffffff";
-    
+
     hexcolor = hexcolor.replace("#", "");
     if (hexcolor.length === 3) {
-      hexcolor = hexcolor.split('').map(char => char + char).join('');
+      hexcolor = hexcolor
+        .split("")
+        .map((char) => char + char)
+        .join("");
     }
-  
+
     var r = parseInt(hexcolor.substr(0, 2), 16);
     var g = parseInt(hexcolor.substr(2, 2), 16);
     var b = parseInt(hexcolor.substr(4, 2), 16);
@@ -211,32 +214,39 @@ export function PublicProfile() {
 
               {/* OVERLAPPING PLAY BADGE */}
               {profile.story_video_url && (
-                <div 
+                <div
                   onClick={() => setIsVideoOpen(true)}
                   className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-900 text-white px-4 py-1.5 rounded-full shadow-xl border-2 border-white cursor-pointer hover:scale-110 transition-transform z-20 animate-float"
                 >
                   <Play size={12} className="fill-white" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">Play Story</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">
+                    Play Story
+                  </span>
                 </div>
               )}
             </div>
 
-            <h1
-              className={`text-3xl md:text-4xl font-extrabold tracking-tight transition-colors duration-300 flex flex-wrap items-end justify-center gap-2 mb-2 ${
-                isDarkBg ? "text-white" : "text-slate-900"
-              }`}
-            >
-              <span>{profile.full_name || `@${profile.username}`}</span>
-              {profile.profile_title && (
-                <span
-                  className={`text-lg md:text-xl font-medium tracking-normal mb-0.5 ${
-                    isDarkBg ? "text-white/70" : "text-slate-500"
-                  }`}
-                >
-                  {profile.profile_title}
+            {/* ✅ FIX: Single line, shrinkable/compactable text using clamp(), removed "..." truncation */}
+            <div className="w-full max-w-full overflow-x-auto no-scrollbar flex justify-center">
+              <h1
+                className={`font-extrabold tracking-tight transition-colors duration-300 flex items-baseline gap-1.5 sm:gap-2 mb-2 whitespace-nowrap px-2 ${
+                  isDarkBg ? "text-white" : "text-slate-900"
+                }`}
+              >
+                <span className="text-[clamp(1.15rem,5vw,2.25rem)]">
+                  {profile.full_name || `@${profile.username}`}
                 </span>
-              )}
-            </h1>
+                {profile.profile_title && (
+                  <span
+                    className={`text-[clamp(0.75rem,3.5vw,1.25rem)] font-medium tracking-normal mb-0.5 ${
+                      isDarkBg ? "text-white/70" : "text-slate-500"
+                    }`}
+                  >
+                    {profile.profile_title}
+                  </span>
+                )}
+              </h1>
+            </div>
 
             {profile.bio && (
               <p
@@ -517,9 +527,6 @@ export function PublicProfile() {
         </div>
       </div>
 
-      {/* ✨ UPDATED: RESPONSIVE VIDEO MODAL */}
-      {/* max-h-[85dvh] prevents the browser URL bar from hiding the top/bottom of the video */}
-      {/* object-contain ensures the video is scaled perfectly without clipping the sides */}
       <AnimatePresence>
         {isVideoOpen && profile.story_video_url && (
           <motion.div

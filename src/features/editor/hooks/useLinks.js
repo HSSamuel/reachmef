@@ -1,80 +1,96 @@
-import { useEffect, useState } from "react";
-import { api } from "../../../config/api"; // ✅ Replaced supabase with api client
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "../../../config/api";
 import { useProfile } from "../../../hooks/useProfile";
 import toast from "react-hot-toast";
 
 export function useLinks() {
   const { profile } = useProfile();
-  const [links, setLinks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  // 1. FETCH LINKS
-  useEffect(() => {
-    if (!profile?._id) return; // ✅ MONGODB FIX: Use _id
-
-    const fetchLinks = async () => {
-      try {
-        const { data } = await api.get("/links");
-        setLinks(data || []);
-      } catch (error) {
-        console.error("Fetch Error:", error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLinks();
-  }, [profile?._id]); // ✅ MONGODB FIX
+  // 1. FETCH LINKS (React Query)
+  const { data: links = [], isLoading: loading } = useQuery({
+    queryKey: ["links", profile?._id],
+    queryFn: async () => {
+      const { data } = await api.get("/links");
+      return data || [];
+    },
+    enabled: !!profile?._id, // Only fetch if profile exists
+  });
 
   // 2. ADD LINK
-  const addLink = async (payload) => {
-    try {
-      if (!profile?._id) throw new Error("Profile not loaded");
-
-      // New link goes to the bottom
+  const { mutateAsync: addLink } = useMutation({
+    mutationFn: async (payload) => {
       const currentLength = links.length;
-
       const { data } = await api.post("/links", {
         ...payload,
         is_active: true,
         sort_order: currentLength,
       });
-
-      setLinks((prev) => [...prev, data]);
       return data;
-    } catch (error) {
+    },
+    onSuccess: (newLink) => {
+      // Instantly update the UI cache
+      queryClient.setQueryData(["links", profile?._id], (old) => [...(old || []), newLink]);
+    },
+    onError: (error) => {
       toast.error(error.response?.data?.error || "Error adding link");
-      throw error;
-    }
-  };
+    },
+  });
 
-  // 3. UPDATE LINK
-  const updateLink = async (id, updates) => {
-    try {
-      // Optimistic Update
-      setLinks(
-        (prev) =>
-          prev.map((link) =>
-            link._id === id ? { ...link, ...updates } : link,
-          ), // ✅ MONGODB FIX: link._id
+  // 3. UPDATE LINK (Optimistic Update)
+  const { mutateAsync: updateLinkWrapper } = useMutation({
+    mutationFn: async ({ id, updates }) => {
+      const { data } = await api.put(`/links/${id}`, updates);
+      return data;
+    },
+    onMutate: async ({ id, updates }) => {
+      await queryClient.cancelQueries({ queryKey: ["links", profile?._id] });
+      const previousLinks = queryClient.getQueryData(["links", profile?._id]);
+
+      // Optimistically update to the new value instantly
+      queryClient.setQueryData(["links", profile?._id], (old) =>
+        old?.map((link) => (link._id === id ? { ...link, ...updates } : link))
       );
 
-      await api.put(`/links/${id}`, updates);
-    } catch (error) {
-      console.error("Update error", error);
-      toast.error("Failed to update");
-    }
-  };
+      return { previousLinks };
+    },
+    onError: (err, variables, context) => {
+      // Revert if mutation fails
+      queryClient.setQueryData(["links", profile?._id], context.previousLinks);
+      toast.error("Failed to update link");
+    },
+    onSettled: () => {
+      // Sync with server in background
+      queryClient.invalidateQueries({ queryKey: ["links", profile?._id] });
+    },
+  });
 
-  // 4. DELETE LINK
-  const deleteLink = async (id) => {
-    try {
-      setLinks((prev) => prev.filter((link) => link._id !== id)); // ✅ MONGODB FIX: link._id
+  const updateLink = (id, updates) => updateLinkWrapper({ id, updates });
+
+  // 4. DELETE LINK (Optimistic Update)
+  const { mutateAsync: deleteLink } = useMutation({
+    mutationFn: async (id) => {
       await api.delete(`/links/${id}`);
-    } catch (error) {
-      toast.error("Failed to delete");
-    }
-  };
+      return id;
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["links", profile?._id] });
+      const previousLinks = queryClient.getQueryData(["links", profile?._id]);
+
+      queryClient.setQueryData(["links", profile?._id], (old) =>
+        old?.filter((link) => link._id !== id)
+      );
+
+      return { previousLinks };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(["links", profile?._id], context.previousLinks);
+      toast.error("Failed to delete link");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["links", profile?._id] });
+    },
+  });
 
   // 5. UPLOAD THUMBNAIL
   const uploadThumbnail = async (id, file) => {
@@ -86,10 +102,8 @@ export function useLinks() {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      const publicUrl = data.url;
-
-      await updateLink(id, { thumbnail_url: publicUrl });
-      return publicUrl;
+      await updateLink(id, { thumbnail_url: data.url });
+      return data.url;
     } catch (error) {
       console.error("Upload Error:", error);
       toast.error("Image upload failed");
@@ -97,39 +111,45 @@ export function useLinks() {
     }
   };
 
-  // 6. REORDER LINKS
-  const reorderLinks = async (newLinks) => {
-    // 1. Optimistic Update (Update UI instantly)
-    setLinks(newLinks);
-
-    try {
-      // 2. Create payload for Express backend
+  // 6. REORDER LINKS (Optimistic Update)
+  const { mutateAsync: reorderLinks } = useMutation({
+    mutationFn: async (newLinks) => {
       const updates = newLinks.map((link, index) => ({
-        id: link._id, // ✅ MONGODB FIX
+        id: link._id,
         sort_order: index,
       }));
-
-      // Execute bulk update
       await api.put("/links/reorder", { updates });
-    } catch (error) {
-      console.error("Reorder Error:", error);
+    },
+    onMutate: async (newLinks) => {
+      await queryClient.cancelQueries({ queryKey: ["links", profile?._id] });
+      const previousLinks = queryClient.getQueryData(["links", profile?._id]);
+      
+      // Instantly update UI order
+      queryClient.setQueryData(["links", profile?._id], newLinks);
+      
+      return { previousLinks };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(["links", profile?._id], context.previousLinks);
       toast.error("Failed to save order");
-    }
-  };
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["links", profile?._id] });
+    },
+  });
 
-  // 7. SYNC DYNAMIC LINK (RSS)
-  const syncLink = async (id) => {
-    try {
+  // 7. SYNC DYNAMIC LINK
+  const { mutateAsync: syncLink } = useMutation({
+    mutationFn: async (id) => {
       const { data } = await api.post(`/links/${id}/sync`);
-      // Update link in state with the newly fetched RSS data
-      setLinks((prev) =>
-        prev.map((link) => (link._id === id ? { ...link, ...data } : link)),
-      );
       return data;
-    } catch (error) {
-      throw error;
-    }
-  };
+    },
+    onSuccess: (data, id) => {
+      queryClient.setQueryData(["links", profile?._id], (old) =>
+        old?.map((link) => (link._id === id ? { ...link, ...data } : link))
+      );
+    },
+  });
 
   return {
     links,

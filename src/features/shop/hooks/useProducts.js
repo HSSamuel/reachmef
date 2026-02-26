@@ -1,38 +1,26 @@
-import { useEffect, useState } from "react";
-import { api } from "../../../config/api"; // <-- Replaced supabase with your new api client
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "../../../config/api";
 import { useProfile } from "../../../hooks/useProfile";
 import toast from "react-hot-toast";
 
 export function useProducts() {
   const { profile } = useProfile();
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // 1. FETCH PRODUCTS
-  useEffect(() => {
-    if (!profile?._id) return; // MONGODB FIX: Using _id
-
-    const fetchProducts = async () => {
-      try {
-        const response = await api.get("/products");
-        setProducts(response.data || []);
-      } catch (error) {
-        console.error("Fetch Error:", error.message);
-        toast.error("Could not load products");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, [profile?._id]); // MONGODB FIX: Using _id
+  const { data: products = [], isLoading: loading } = useQuery({
+    queryKey: ["products", profile?._id],
+    queryFn: async () => {
+      const response = await api.get("/products");
+      return response.data || [];
+    },
+    enabled: !!profile?._id,
+  });
 
   // 2. ADD PRODUCT
-  const addProduct = async ({ title, price, product_url, image_url }) => {
-    try {
-      // Optimistic Update (Optional: handled by state update below)
+  const { mutateAsync: addProduct } = useMutation({
+    mutationFn: async ({ title, price, product_url, image_url }) => {
       const currentLength = products.length;
-
       const response = await api.post("/products", {
         title,
         price,
@@ -40,49 +28,86 @@ export function useProducts() {
         image_url,
         sort_order: currentLength,
       });
-
-      // Update local state immediately
-      setProducts((prev) => [...prev, response.data]);
       return response.data;
-    } catch (error) {
+    },
+    onSuccess: (newProduct) => {
+      queryClient.setQueryData(["products", profile?._id], (old) => [
+        ...(old || []),
+        newProduct,
+      ]);
+    },
+    onError: (error) => {
       console.error("Add Error:", error);
       toast.error("Failed to add product");
-      throw error;
-    }
-  };
+    },
+  });
 
-  // 3. DELETE PRODUCT
-  const deleteProduct = async (id) => {
-    try {
-      // Optimistic UI update
-      // MONGODB FIX: Using _id
-      setProducts((prev) => prev.filter((p) => p._id !== id));
-
+  // 3. DELETE PRODUCT (Optimistic)
+  const { mutateAsync: deleteProduct } = useMutation({
+    mutationFn: async (id) => {
       await api.delete(`/products/${id}`);
+      return id;
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["products", profile?._id] });
+      const previousProducts = queryClient.getQueryData([
+        "products",
+        profile?._id,
+      ]);
 
-      toast.success("Product deleted");
-    } catch (error) {
-      console.error("Delete Error:", error);
-      toast.error("Failed to delete");
-      // Optional: Re-fetch products here if delete fails to sync state
-    }
-  };
-
-  // 4. TOGGLE ACTIVE STATUS
-  const toggleProductActive = async (id, isActive) => {
-    try {
-      // Optimistic UI update
-      // MONGODB FIX: Using _id
-      setProducts((prev) =>
-        prev.map((p) => (p._id === id ? { ...p, is_active: isActive } : p)),
+      queryClient.setQueryData(["products", profile?._id], (old) =>
+        old?.filter((p) => p._id !== id),
       );
 
+      return { previousProducts };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(
+        ["products", profile?._id],
+        context.previousProducts,
+      );
+      toast.error("Failed to delete");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["products", profile?._id] });
+    },
+    onSuccess: () => {
+      toast.success("Product deleted");
+    },
+  });
+
+  // 4. TOGGLE ACTIVE STATUS (Optimistic)
+  const { mutateAsync: toggleProductActiveWrapper } = useMutation({
+    mutationFn: async ({ id, isActive }) => {
       await api.put(`/products/${id}`, { is_active: isActive });
-    } catch (error) {
-      console.error("Update Error:", error);
+    },
+    onMutate: async ({ id, isActive }) => {
+      await queryClient.cancelQueries({ queryKey: ["products", profile?._id] });
+      const previousProducts = queryClient.getQueryData([
+        "products",
+        profile?._id,
+      ]);
+
+      queryClient.setQueryData(["products", profile?._id], (old) =>
+        old?.map((p) => (p._id === id ? { ...p, is_active: isActive } : p)),
+      );
+
+      return { previousProducts };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(
+        ["products", profile?._id],
+        context.previousProducts,
+      );
       toast.error("Update failed");
-    }
-  };
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["products", profile?._id] });
+    },
+  });
+
+  const toggleProductActive = (id, isActive) =>
+    toggleProductActiveWrapper({ id, isActive });
 
   // 5. UPLOAD IMAGE
   const uploadProductImage = async (file) => {
