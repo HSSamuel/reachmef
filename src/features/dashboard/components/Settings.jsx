@@ -410,6 +410,7 @@ function AccordionItem({ title, icon, children, isOpen, onClick }) {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
+            style={{ overflow: "hidden" }} /* ✅ FIXED JITTER */
           >
             <div className="p-4 pt-0 border-t border-indigo-50/50">
               <div className="pt-4">{children}</div>

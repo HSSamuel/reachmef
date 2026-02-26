@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { ExternalLink, Lock, ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import axios from "axios";
-import { toast } from "react-hot-toast"; // ✅ Added toast
+import { toast } from "react-hot-toast";
 
 export function PublicLink({
   link,
@@ -11,11 +11,11 @@ export function PublicLink({
   themeColor,
   isDark,
 }) {
-  const [isLocked, setIsLocked] = useState(!!link.is_locked); // ✅ Use backend flag
+  const [isLocked, setIsLocked] = useState(!!link.is_locked);
   const [showInput, setShowInput] = useState(false);
   const [pin, setPin] = useState("");
   const [shake, setShake] = useState(false);
-  const [unlockedUrl, setUnlockedUrl] = useState(link.url); // ✅ Use state for URL
+  const [unlockedUrl, setUnlockedUrl] = useState(link.url);
 
   const accentColor = themeColor || "#6366f1";
 
@@ -62,7 +62,6 @@ export function PublicLink({
         ? "rgba(255,255,255,0.2)"
         : "rgba(226,232,240,1)";
 
-  // ✅ VULNERABILITY FIX: Perform verification on the server
   const handleUnlock = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -93,15 +92,18 @@ export function PublicLink({
   };
   const videoId = getYouTubeId(unlockedUrl);
 
-  // 2. Spotify
-  const isSpotify = unlockedUrl && unlockedUrl.includes("open.spotify.com");
+  // 2. Spotify (Fixed URL interpolation)
+  const isSpotify =
+    unlockedUrl &&
+    (unlockedUrl.includes("spotify.com") ||
+      unlockedUrl.includes("http://googleusercontent.com/spotify.com"));
   const getSpotifyEmbed = (url) => {
     if (!url) return null;
     const match = url.match(
       /open\.spotify\.com\/(track|album|playlist|episode)\/([a-zA-Z0-9]+)/,
     );
     if (!match) return null;
-    return `https://open.spotify.com/embed/$${match[1]}/${match[2]}`; // ✅ Fixed Template string interpolation
+    return `https://open.spotify.com/embed/${match[1]}/${match[2]}?utm_source=generator`;
   };
 
   // 3. Twitter / X
@@ -121,7 +123,6 @@ export function PublicLink({
 
   // --- RENDERERS ---
 
-  // LOCKED STATE
   if (isLocked) {
     return (
       <motion.div
@@ -171,7 +172,6 @@ export function PublicLink({
     );
   }
 
-  // YOUTUBE EMBED
   if (videoId) {
     return (
       <EmbedWrapper>
@@ -186,7 +186,6 @@ export function PublicLink({
     );
   }
 
-  // SPOTIFY EMBED
   if (isSpotify) {
     const embedUrl = getSpotifyEmbed(unlockedUrl);
     if (embedUrl) {
@@ -208,7 +207,6 @@ export function PublicLink({
     }
   }
 
-  // TWITTER / X EMBED
   if (isTwitter) {
     return (
       <div className="w-full max-w-[95%] mx-auto mb-4 overflow-hidden rounded-2xl bg-white shadow-sm border border-slate-200">
@@ -217,7 +215,6 @@ export function PublicLink({
     );
   }
 
-  // CALENDAR & FORMS EMBED (Iframe)
   if (isCalendar || isForm) {
     return (
       <EmbedWrapper height="h-96">
@@ -230,7 +227,6 @@ export function PublicLink({
     );
   }
 
-  // STANDARD LINK
   return (
     <motion.a
       href={unlockedUrl}
@@ -312,12 +308,10 @@ function EmbedWrapper({ children, height = "aspect-video" }) {
   );
 }
 
-// Lightweight Twitter Embed using native widgets.js
 function TwitterEmbed({ url, isDark }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
-    // 1. Load Script if not present
     if (!window.twttr) {
       const script = document.createElement("script");
       script.src = "https://platform.twitter.com/widgets.js";
@@ -325,7 +319,6 @@ function TwitterEmbed({ url, isDark }) {
       document.body.appendChild(script);
     }
 
-    // 2. Scan for tweets once script is loaded
     const interval = setInterval(() => {
       if (window.twttr && containerRef.current) {
         window.twttr.widgets.load(containerRef.current);

@@ -6,10 +6,10 @@ import toast from "react-hot-toast";
 
 export function QRCodeCard({ username, avatarUrl }) {
   const qrRef = useRef();
-  const downloadQrRef = useRef(); // ✅ NEW: Ref for the hidden high-res canvas
+  const downloadQrRef = useRef();
   const [qrAvatar, setQrAvatar] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false); // ✅ PERFORMANCE FIX
 
-  // ✅ SAFELY BUILD URL: Avoids undefined in the generated QR URL
   const cleanUsername = username ? username.trim() : "";
   const profileUrl = cleanUsername 
     ? `${window.location.origin}/${cleanUsername}` 
@@ -18,7 +18,7 @@ export function QRCodeCard({ username, avatarUrl }) {
   useEffect(() => {
     if (avatarUrl) {
       const img = new Image();
-      img.crossOrigin = "anonymous"; // CRITICAL: Allows cross-origin image download
+      img.crossOrigin = "anonymous"; 
       img.src = avatarUrl;
 
       img.onload = () => {
@@ -45,27 +45,30 @@ export function QRCodeCard({ username, avatarUrl }) {
   }, [avatarUrl]);
 
   const downloadQR = () => {
-    try {
-      // 1. Get the canvas element from the HIDDEN HIGH-RES reference
-      const canvas = downloadQrRef.current.querySelector("canvas");
-      if (!canvas) throw new Error("Canvas not found");
+    setIsDownloading(true);
+    
+    // Give React a moment to render the hidden high-res canvas before converting
+    setTimeout(() => {
+      try {
+        const canvas = downloadQrRef.current?.querySelector("canvas");
+        if (!canvas) throw new Error("Canvas not found");
 
-      // 2. Convert to data URL
-      const image = canvas.toDataURL("image/png");
+        const image = canvas.toDataURL("image/png");
+        const anchor = document.createElement("a");
+        anchor.href = image;
+        anchor.download = `reachme-qr-${cleanUsername || "profile"}-hd.png`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
 
-      // 3. Create a fake link to trigger download
-      const anchor = document.createElement("a");
-      anchor.href = image;
-      anchor.download = `reachme-qr-${cleanUsername || "profile"}-hd.png`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-
-      toast.success("High-Res QR Code downloaded!");
-    } catch (error) {
-      console.error("QR Download Error:", error);
-      toast.error("Failed to download QR Code. Image may be restricted.");
-    }
+        toast.success("High-Res QR Code downloaded!");
+      } catch (error) {
+        console.error("QR Download Error:", error);
+        toast.error("Failed to download QR Code. Image may be restricted.");
+      } finally {
+        setIsDownloading(false);
+      }
+    }, 500); 
   };
 
   return (
@@ -75,7 +78,6 @@ export function QRCodeCard({ username, avatarUrl }) {
         <h2>Your QR Code</h2>
       </div>
 
-      {/* VISIBLE PREVIEW CANVAS (Small size for dashboard display) */}
       <div
         ref={qrRef}
         className="p-1 bg-white rounded-xl border-2 border-slate-100 shadow-sm"
@@ -91,7 +93,7 @@ export function QRCodeCard({ username, avatarUrl }) {
             qrAvatar
               ? {
                   src: qrAvatar,
-                  x: undefined, // Centers automatically
+                  x: undefined, 
                   y: undefined,
                   height: 45,
                   width: 45,
@@ -111,38 +113,41 @@ export function QRCodeCard({ username, avatarUrl }) {
 
       <button
         onClick={downloadQR}
-        className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors w-full justify-center shadow-lg shadow-slate-900/20 active:scale-95 z-10"
+        disabled={isDownloading}
+        className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors w-full justify-center shadow-lg shadow-slate-900/20 active:scale-95 z-10 disabled:opacity-50"
       >
-        <Download size={16} /> Download HD PNG
+        <Download size={16} /> {isDownloading ? "Generating..." : "Download HD PNG"}
       </button>
 
-      {/* ✅ HIDDEN HIGH-RES CANVAS (Used specifically for downloading) */}
-      <div 
-        className="absolute left-[-9999px] top-[-9999px] opacity-0 pointer-events-none" 
-        aria-hidden="true" 
-        ref={downloadQrRef}
-      >
-        <QRCodeCanvas
-          value={profileUrl}
-          size={2048} // ✨ Upgraded to massive 2K Resolution
-          bgColor={"#ffffff"}
-          fgColor={"#0f172a"}
-          level={"H"}
-          includeMargin={true}
-          imageSettings={
-            qrAvatar
-              ? {
-                  src: qrAvatar,
-                  x: undefined,
-                  y: undefined,
-                  height: 360, // Scaled up logo size to match 2048 canvas
-                  width: 360,
-                  excavate: true,
-                }
-              : undefined
-          }
-        />
-      </div>
+      {/* ✅ PERFORMANCE FIX: Render the huge 2K canvas dynamically only when explicitly requested */}
+      {isDownloading && (
+        <div 
+          className="absolute left-[-9999px] top-[-9999px] opacity-0 pointer-events-none" 
+          aria-hidden="true" 
+          ref={downloadQrRef}
+        >
+          <QRCodeCanvas
+            value={profileUrl}
+            size={2048} 
+            bgColor={"#ffffff"}
+            fgColor={"#0f172a"}
+            level={"H"}
+            includeMargin={true}
+            imageSettings={
+              qrAvatar
+                ? {
+                    src: qrAvatar,
+                    x: undefined,
+                    y: undefined,
+                    height: 360, 
+                    width: 360,
+                    excavate: true,
+                  }
+                : undefined
+            }
+          />
+        </div>
+      )}
     </Card>
   );
 }

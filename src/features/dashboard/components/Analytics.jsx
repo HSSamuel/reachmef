@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLinks } from "../../editor/hooks/useLinks";
 import { useProfile } from "../../../hooks/useProfile";
-import { api } from "../../../config/api"; // ✅ Replaced supabase with api client
+import { api } from "../../../config/api";
 import {
   BarChart3,
   MousePointer2,
@@ -59,14 +59,11 @@ export function Analytics() {
   const { links } = useLinks();
   const { profile } = useProfile();
 
-  // --- STATE FOR SUBSCRIBERS ---
   const [subscribers, setSubscribers] = useState([]);
   const [loadingSubscribers, setLoadingSubscribers] = useState(true);
 
-  // --- 1. FETCH SUBSCRIBERS ---
   useEffect(() => {
     if (profile?._id) {
-      // ✅ MONGODB FIX
       fetchSubscribers();
     }
   }, [profile?._id]);
@@ -74,7 +71,6 @@ export function Analytics() {
   const fetchSubscribers = async () => {
     try {
       setLoadingSubscribers(true);
-
       const { data } = await api.get("/subscribers");
       setSubscribers(data || []);
     } catch (error) {
@@ -84,18 +80,12 @@ export function Analytics() {
     }
   };
 
-  // --- LINK ANALYTICS CALCULATIONS ---
   const totalClicks = links.reduce((sum, link) => sum + (link.clicks || 0), 0);
   const totalViews = Math.floor(totalClicks * 1.8);
-  const ctr =
-    totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(1) : 0;
   const topLinks = [...links]
     .sort((a, b) => (b.clicks || 0) - (a.clicks || 0))
     .slice(0, 4);
 
-  // --- HANDLERS ---
-
-  // Export LINK Data
   const handleExportLinks = () => {
     try {
       const headers = "Title,URL,Clicks,Active\n";
@@ -126,7 +116,6 @@ export function Analytics() {
     }
   };
 
-  // Export SUBSCRIBER Data
   const handleExportSubscribers = () => {
     try {
       if (subscribers.length === 0) {
@@ -138,7 +127,7 @@ export function Analytics() {
         .map(
           (s) =>
             `"${s.email}","${new Date(s.created_at).toLocaleDateString()}","${
-              s._id // ✅ MONGODB FIX
+              s._id
             }"`,
         )
         .join("\n");
@@ -167,7 +156,6 @@ export function Analytics() {
 
   return (
     <div className="max-w-7xl mx-auto pb-24 px-4">
-      {/* HEADER */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Analytics</h1>
@@ -189,9 +177,7 @@ export function Analytics() {
         </div>
       </div>
 
-      {/* --- GRID --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* ROW 1: METRICS */}
         <MetricCard
           title="Total Views"
           value={totalViews.toLocaleString()}
@@ -208,7 +194,6 @@ export function Analytics() {
           trend="+5%"
           trendColor="text-green-600 bg-green-50"
         />
-        {/* ✅ NEW: SUBSCRIBER METRIC */}
         <MetricCard
           title="Subscribers"
           value={loadingSubscribers ? "..." : subscribers.length}
@@ -218,7 +203,6 @@ export function Analytics() {
           trendColor="text-indigo-600 bg-indigo-50"
         />
 
-        {/* Device Mini Card */}
         <Card className="p-4 border-slate-200 shadow-sm flex flex-col justify-between h-28">
           <div className="flex justify-between items-start mb-1">
             <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-md">
@@ -247,7 +231,6 @@ export function Analytics() {
           </div>
         </Card>
 
-        {/* ROW 2: MAIN CHART (Span 3) + TOP LINKS (Span 1) */}
         <Card className="md:col-span-2 lg:col-span-3 p-4 border-slate-200 shadow-sm h-[300px] flex flex-col">
           <div className="flex justify-between items-center mb-2 shrink-0">
             <h3 className="font-bold text-slate-800 text-sm">
@@ -316,7 +299,6 @@ export function Analytics() {
           </div>
         </Card>
 
-        {/* TOP LINKS */}
         <Card className="md:col-span-2 lg:col-span-1 p-4 border-slate-200 shadow-sm h-[300px] flex flex-col">
           <h3 className="font-bold text-slate-800 text-sm mb-4 shrink-0">
             Top Links
@@ -329,8 +311,6 @@ export function Analytics() {
             ) : (
               topLinks.map((link) => (
                 <div key={link._id} className="group">
-                  {" "}
-                  {/* ✅ MONGODB FIX */}
                   <div className="flex justify-between items-center mb-1">
                     <p
                       className="text-xs font-bold text-slate-700 truncate max-w-[140px]"
@@ -359,14 +339,12 @@ export function Analytics() {
           </div>
         </Card>
 
-        {/* ROW 3: LOCATIONS & DEVICES */}
         <Card className="md:col-span-2 p-4 border-slate-200 shadow-sm h-60">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-slate-800 text-sm">Top Locations</h3>
             <Globe size={16} className="text-slate-400" />
           </div>
           <div className="flex gap-6 h-[160px]">
-            {/* REAL SVG MAP */}
             <div className="hidden sm:flex flex-col items-center justify-center bg-indigo-50/30 rounded-lg w-1/3 shrink-0 relative overflow-hidden">
               <div className="absolute inset-0 opacity-80 scale-125">
                 <WorldMap />
@@ -379,7 +357,6 @@ export function Analytics() {
               </div>
             </div>
 
-            {/* List */}
             <div className="flex-1 space-y-2.5 overflow-y-auto pr-1 custom-scrollbar">
               {LOCATION_DATA.map((loc) => (
                 <div
@@ -470,7 +447,6 @@ export function Analytics() {
           </div>
         </Card>
 
-        {/* ✅ ROW 4: AUDIENCE GROWTH (Real Subscriber List) */}
         <Card className="col-span-1 md:col-span-2 lg:col-span-4 p-0 border-slate-200 shadow-sm overflow-hidden bg-white">
           <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -501,7 +477,7 @@ export function Analytics() {
               <div className="p-8 flex justify-center">
                 <Loader2 className="animate-spin text-slate-300" />
               </div>
-            ) : subscribers.length === 0 ? (
+            ) : !loadingSubscribers && subscribers.length === 0 ? (
               <div className="p-12 text-center">
                 <Mail className="text-slate-300 w-12 h-12 mx-auto mb-3" />
                 <h3 className="text-sm font-bold text-slate-900">
@@ -523,7 +499,7 @@ export function Analytics() {
                 <tbody className="divide-y divide-slate-100">
                   {subscribers.map((sub) => (
                     <tr
-                      key={sub._id} // ✅ MONGODB FIX
+                      key={sub._id}
                       className="hover:bg-slate-50 transition-colors"
                     >
                       <td className="px-6 py-3 font-medium text-slate-900 flex items-center gap-3">
@@ -547,7 +523,6 @@ export function Analytics() {
   );
 }
 
-// --- METRIC CARD COMPONENT ---
 function MetricCard({ title, value, icon, color, trend, trendColor }) {
   return (
     <Card className="p-4 border-slate-200 shadow-sm flex flex-col justify-between h-28">
@@ -571,7 +546,6 @@ function MetricCard({ title, value, icon, color, trend, trendColor }) {
   );
 }
 
-// --- WORLD MAP SVG COMPONENT ---
 const WorldMap = () => (
   <svg
     viewBox="0 0 100 50"

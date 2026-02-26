@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
+import { useProfile } from "../../../hooks/useProfile";
 import { cn } from "../../lib/utils";
 import {
   LayoutDashboard,
@@ -18,11 +19,14 @@ import toast from "react-hot-toast";
 
 export function Navbar() {
   const { user, signOut } = useAuthStore();
+  const { profile } = useProfile();
   const [copied, setCopied] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // ✅ MONGODB FIX: Fallback to email prefix if username isn't available at root level
-  const userIdentifier = user?.email?.split("@")[0] || "user";
+  // ✅ Fixed to pull genuine username from profile hook
+  const userIdentifier =
+    profile?.username || user?.email?.split("@")[0] || "user";
+
   const copyLink = () => {
     // ✅ Append a tiny timestamp cache-buster so WhatsApp is forced to fetch live updates
     const v = new Date().getTime().toString().slice(-5);

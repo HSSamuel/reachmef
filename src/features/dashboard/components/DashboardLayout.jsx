@@ -30,15 +30,14 @@ export function DashboardLayout() {
   const { profile, loading: profileLoading } = useProfile();
   const navigate = useNavigate();
 
-  // State
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [qrAvatar, setQrAvatar] = useState(null);
+  const [isDownloadingQR, setIsDownloadingQR] = useState(false); // ✅ PERFORMANCE FIX
 
-  // Refs
   const profileRef = useRef(null);
   const navRef = useRef(null);
   const mobileMenuRef = useRef(null);
@@ -114,19 +113,17 @@ export function DashboardLayout() {
   }, [shareOpen, profile?.avatar_url]);
 
   const cleanUsername = profile?.username ? profile.username.trim() : "";
-  
-  // The URL shown visually in the UI (clean)
+
   const displayUrl = cleanUsername
     ? `${window.location.origin}/${cleanUsername}`
     : window.location.origin;
 
   const handleCopyLink = () => {
-    // ✅ The URL actually copied to clipboard (with cache-buster for WhatsApp)
     const v = new Date().getTime().toString().slice(-5);
-    const shareUrl = cleanUsername 
-      ? `${window.location.origin}/${cleanUsername}?v=${v}` 
+    const shareUrl = cleanUsername
+      ? `${window.location.origin}/${cleanUsername}?v=${v}`
       : window.location.origin;
-      
+
     navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     toast.success("Link copied!");
@@ -134,24 +131,29 @@ export function DashboardLayout() {
   };
 
   const handleDownloadQR = () => {
-    if (!downloadQrRef.current) return;
-    try {
-      const canvas = downloadQrRef.current.querySelector("canvas");
-      if (!canvas) throw new Error("QR Canvas not found");
+    setIsDownloadingQR(true);
 
-      const image = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = image;
-      link.download = `reachme-qr-${cleanUsername || "profile"}-hd.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    setTimeout(() => {
+      try {
+        const canvas = downloadQrRef.current?.querySelector("canvas");
+        if (!canvas) throw new Error("QR Canvas not found");
 
-      toast.success("High-quality QR downloaded!");
-    } catch (error) {
-      console.error("QR Download Error:", error);
-      toast.error("Could not download QR Code.");
-    }
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.href = image;
+        link.download = `reachme-qr-${cleanUsername || "profile"}-hd.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("High-quality QR downloaded!");
+      } catch (error) {
+        console.error("QR Download Error:", error);
+        toast.error("Could not download QR Code.");
+      } finally {
+        setIsDownloadingQR(false);
+      }
+    }, 500);
   };
 
   const navItems = [
@@ -164,7 +166,7 @@ export function DashboardLayout() {
   ];
 
   const qrSettings = {
-    value: profileUrl,
+    value: displayUrl,
     bgColor: "#ffffff",
     fgColor: "#0f172a",
     level: "H",
@@ -412,32 +414,36 @@ export function DashboardLayout() {
 
               <button
                 onClick={handleDownloadQR}
-                className="w-full flex items-center justify-center gap-2 py-3 border border-slate-200 rounded-xl text-slate-700 font-bold hover:bg-slate-50 transition-colors"
+                disabled={isDownloadingQR}
+                className="w-full flex items-center justify-center gap-2 py-3 border border-slate-200 rounded-xl text-slate-700 font-bold hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 <Download size={18} />
-                Download HD QR Code
+                {isDownloadingQR ? "Generating..." : "Download HD QR Code"}
               </button>
             </div>
 
-            <div
-              className="absolute left-[-9999px] top-[-9999px] opacity-0 pointer-events-none"
-              aria-hidden="true"
-              ref={downloadQrRef}
-            >
-              <QRCodeCanvas
-                {...qrSettings}
-                size={2048} // ✨ Upgraded to massive 2K Resolution
-                imageSettings={
-                  qrSettings.imageSettings
-                    ? {
-                        ...qrSettings.imageSettings,
-                        height: 360, // Scaled up logo size
-                        width: 360,
-                      }
-                    : undefined
-                }
-              />
-            </div>
+            {/* ✅ PERFORMANCE FIX: Render the huge 2K canvas dynamically only when explicitly requested */}
+            {isDownloadingQR && (
+              <div
+                className="absolute left-[-9999px] top-[-9999px] opacity-0 pointer-events-none"
+                aria-hidden="true"
+                ref={downloadQrRef}
+              >
+                <QRCodeCanvas
+                  {...qrSettings}
+                  size={2048}
+                  imageSettings={
+                    qrSettings.imageSettings
+                      ? {
+                          ...qrSettings.imageSettings,
+                          height: 360,
+                          width: 360,
+                        }
+                      : undefined
+                  }
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
