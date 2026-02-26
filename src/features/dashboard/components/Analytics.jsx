@@ -126,7 +126,8 @@ export function Analytics() {
       const rows = subscribers
         .map(
           (s) =>
-            `"${s.email}","${new Date(s.created_at).toLocaleDateString()}","${
+            // ✅ FIX: Changed created_at to createdAt
+            `"${s.email}","${new Date(s.createdAt).toLocaleDateString()}","${
               s._id
             }"`,
         )
@@ -509,7 +510,8 @@ export function Analytics() {
                         {sub.email}
                       </td>
                       <td className="px-6 py-3 text-right text-slate-500">
-                        {new Date(sub.created_at).toLocaleDateString()}
+                        {/* ✅ FIX: Changed created_at to createdAt */}
+                        {new Date(sub.createdAt).toLocaleDateString()}
                       </td>
                     </tr>
                   ))}
