@@ -114,12 +114,20 @@ export function DashboardLayout() {
   }, [shareOpen, profile?.avatar_url]);
 
   const cleanUsername = profile?.username ? profile.username.trim() : "";
-  const profileUrl = cleanUsername
+  
+  // The URL shown visually in the UI (clean)
+  const displayUrl = cleanUsername
     ? `${window.location.origin}/${cleanUsername}`
     : window.location.origin;
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(profileUrl);
+    // ✅ The URL actually copied to clipboard (with cache-buster for WhatsApp)
+    const v = new Date().getTime().toString().slice(-5);
+    const shareUrl = cleanUsername 
+      ? `${window.location.origin}/${cleanUsername}?v=${v}` 
+      : window.location.origin;
+      
+    navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     toast.success("Link copied!");
     setTimeout(() => setCopied(false), 2000);
@@ -392,7 +400,7 @@ export function DashboardLayout() {
             <div className="space-y-3">
               <div className="flex gap-2">
                 <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-600 truncate flex items-center">
-                  {profileUrl}
+                  {displayUrl}
                 </div>
                 <button
                   onClick={handleCopyLink}

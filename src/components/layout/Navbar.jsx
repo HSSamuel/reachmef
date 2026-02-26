@@ -24,7 +24,9 @@ export function Navbar() {
   // ✅ MONGODB FIX: Fallback to email prefix if username isn't available at root level
   const userIdentifier = user?.email?.split("@")[0] || "user";
   const copyLink = () => {
-    const url = `${window.location.origin}/${userIdentifier}`;
+    // ✅ Append a tiny timestamp cache-buster so WhatsApp is forced to fetch live updates
+    const v = new Date().getTime().toString().slice(-5);
+    const url = `${window.location.origin}/${userIdentifier}?v=${v}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast.success("Copied to clipboard!");

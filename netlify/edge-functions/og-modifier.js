@@ -21,12 +21,11 @@ export default async (request, context) => {
 
   try {
     const controller = new AbortController();
-    // ✅ INCREASED TIMEOUT: Gives Render backend 4 seconds to respond before giving up
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const timeoutId = setTimeout(() => controller.abort(), 4000); 
 
     const apiRes = await fetch(
       `https://reachme-1fqo.onrender.com/api/profiles/${username}`,
-      { signal: controller.signal },
+      { signal: controller.signal }
     );
 
     clearTimeout(timeoutId);
@@ -36,28 +35,24 @@ export default async (request, context) => {
       const profile = data.profile;
 
       if (profile) {
-        const escapeQuotes = (str) => (str ? str.replace(/"/g, "&quot;") : "");
+        const escapeQuotes = (str) => (str ? str.replace(/"/g, '&quot;') : "");
 
         const title = escapeQuotes(profile.full_name || `@${profile.username}`);
-
-        // ✅ FALLBACK: If they used a Google Drive link, fallback to Dicebear so WhatsApp doesn't crash
+        
         let imageUrl = profile.avatar_url;
-        if (
-          !imageUrl ||
-          imageUrl.includes("share.google") ||
-          imageUrl.includes("drive.google")
-        ) {
-          imageUrl = `https://api.dicebear.com/7.x/initials/png?seed=${profile.username}`;
+        if (!imageUrl || imageUrl.includes("share.google") || imageUrl.includes("drive.google")) {
+            imageUrl = `https://api.dicebear.com/7.x/initials/png?seed=${profile.username}`;
         }
         const image = escapeQuotes(imageUrl);
-
+        
         const profileUrl = `https://reachme.netlify.app/${profile.username}`;
-        const defaultDesc = `Check out ${profile.username}'s official ReachMe profile.`;
-
-        let rawDesc = profile.bio || "";
-        if (rawDesc.length < 100) {
-          rawDesc = rawDesc ? `${rawDesc} | ${defaultDesc}` : defaultDesc;
-        }
+        
+        // ✅ FIX: No more artificial padding! If they have a bio, use exactly that. 
+        // If it's empty, use a short default. This stops WhatsApp from adding "..."
+        let rawDesc = profile.bio && profile.bio.trim() !== "" 
+          ? profile.bio 
+          : `Check out ${profile.username}'s official profile.`;
+          
         const desc = escapeQuotes(rawDesc);
 
         const customMetaTags = `
@@ -83,10 +78,7 @@ export default async (request, context) => {
         html = html.replace(/<meta name="description"[^>]*>/gi, "");
 
         html = html.replace("</head>", `${customMetaTags}\n</head>`);
-        html = html.replace(
-          /<title>(.*?)<\/title>/,
-          `<title>${title} | ReachMe</title>`,
-        );
+        html = html.replace(/<title>(.*?)<\/title>/, `<title>${title} | ReachMe</title>`);
       }
     }
   } catch (err) {

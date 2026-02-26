@@ -67,7 +67,8 @@ export function Settings() {
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/${profile?.username}`;
+    const v = new Date().getTime().toString().slice(-5);
+    const url = `${window.location.origin}/${profile?.username}?v=${v}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast.success("Link copied!");
