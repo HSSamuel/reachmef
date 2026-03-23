@@ -25,7 +25,7 @@ export default async (request, context) => {
     const timeoutId = setTimeout(() => controller.abort(), 4000);
 
     // ✅ FIX 1: Add a timestamp query to force the edge runtime to bypass cache
-    const fetchUrl = `https://reachme-1fqo.onrender.com/api/profiles/${username}?_cb=${Date.now()}`;
+    const fetchUrl = `https://reachme-xi9k.onrender.com/api/profiles/${username}?_cb=${Date.now()}`;
 
     // ✅ FIX 2: Explicitly tell the fetch request not to use cached data
     const apiRes = await fetch(fetchUrl, {
